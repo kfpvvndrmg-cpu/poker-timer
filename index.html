@@ -9,7 +9,7 @@
     <link rel="apple-touch-icon" href="OIP.webp">
     <link rel="icon" href="OIP.webp" type="image/webp">
     
-    <title>Poker Timer V3</title>
+    <title>Poker Timer V4</title>
     <style>
         :root {
             --bg-color: #121212;
@@ -19,6 +19,7 @@
             --accent-red: #d32f2f;
             --accent-green: #2e7d32;
             --accent-blue: #1976d2;
+            --accent-orange: #ff9800;
             --border-color: #333;
         }
 
@@ -36,7 +37,7 @@
         header {
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 10px;
             margin-bottom: 15px;
             width: 100%;
             max-width: 600px;
@@ -62,10 +63,10 @@
 
         /* Timer & Blinds */
         .timer-display {
-            font-size: 60px;
+            font-size: 65px;
             font-weight: bold;
             text-align: center;
-            margin: 5px 0;
+            margin: 0;
             color: var(--accent-green);
         }
 
@@ -74,28 +75,40 @@
             font-size: 26px;
             color: var(--accent-red);
             font-weight: bold;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .level-badge {
+            font-size: 14px;
+            background: #333;
+            padding: 4px 10px;
+            border-radius: 20px;
+            color: white;
+            margin-bottom: 5px;
         }
 
         .controls { display: flex; gap: 10px; margin-top: 10px; }
         
         button {
             background-color: #333; color: white; border: none;
-            padding: 10px; border-radius: 8px; font-size: 14px;
-            cursor: pointer; font-weight: bold; flex: 1;
+            padding: 12px; border-radius: 8px; font-size: 14px;
+            cursor: pointer; font-weight: bold; flex: 1; transition: background 0.2s;
         }
-        button:active { background-color: #555; }
         .btn-play { background-color: var(--accent-green); }
-        .btn-pause { background-color: #ff9800; }
+        .btn-pause { background-color: var(--accent-orange); }
         .btn-next { background-color: var(--accent-blue); }
-        .btn-small { padding: 6px 10px; font-size: 12px; flex: none; }
         .btn-danger { background-color: var(--accent-red); }
+        .btn-small { padding: 8px 10px; font-size: 12px; flex: none; }
+        .btn-struct { background: #444; color: #fff; margin-top: 5px; font-size: 12px; padding: 5px 15px; border-radius: 15px; }
 
         /* Inputs */
         .row {
             display: flex; justify-content: space-between; align-items: center;
             margin-bottom: 10px; gap: 10px;
         }
-        input, select {
+        input, select, textarea {
             background-color: #333; color: white; border: 1px solid #555;
             padding: 8px; border-radius: 6px; font-size: 14px;
             width: 100%; box-sizing: border-box;
@@ -115,6 +128,17 @@
         th { color: var(--text-muted); font-weight: normal; }
         .gold { color: #ffd700; font-weight: bold; }
 
+        /* Fenêtres Modales Custom */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.8); z-index: 1000;
+            display: flex; justify-content: center; align-items: center;
+        }
+        .modal-content {
+            background: var(--panel-bg); padding: 20px; border-radius: 12px;
+            width: 90%; max-width: 400px; text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+        }
     </style>
 </head>
 <body>
@@ -122,28 +146,30 @@
     <header>
         <img src="OIP.webp" alt="Logo">
         <select id="tournamentSelect" onchange="loadTournament()"></select>
-        <button class="btn-small btn-next" onclick="createNewTournament()">+ Créer</button>
+        <button class="btn-small btn-next" onclick="showModal('modal-new-tourney')">+ Créer</button>
     </header>
 
     <!-- Timer & Blinds -->
     <div class="card">
         <div class="blinds-display">
-            Blinds: <span id="sb">10</span> / <span id="bb">20</span>
+            <span class="level-badge" id="levelDisplay">Niv. 1</span>
+            <div><span id="sb">10</span> / <span id="bb">20</span></div>
+            <button class="btn-struct" onclick="openBlindsModal()">⚙️ Modifier Structure des Blinds</button>
         </div>
         <div class="timer-display" id="timeDisplay">15:00</div>
         <div class="controls">
             <button class="btn-play" id="btnPlay" onclick="toggleTimer()">▶ Play</button>
             <button class="btn-next" onclick="nextLevel()">⏭ Suiv.</button>
-            <button onclick="resetTimer()">🔄 Reset</button>
+            <button onclick="confirmReset(this)">🔄 Reset</button>
         </div>
     </div>
 
     <!-- Paramètres -->
     <div class="card">
-        <h3>Paramètres en direct</h3>
+        <h3>Paramètres du tournoi</h3>
         <div class="row">
-            <label style="color: var(--accent-red); font-weight: bold;">Modifier Petite Blind (SB)</label>
-            <input type="number" class="input-short" id="currentSbInput" onchange="updateCustomSb()">
+            <label>Nom du Tournoi</label>
+            <input type="text" id="tourneyNameInput" style="width: 60%;" onchange="renameTournament()">
         </div>
         <div class="row">
             <label>Durée rounds (min)</label>
@@ -196,292 +222,18 @@
         </table>
     </div>
 
-    <script>
-        // --- DONNÉES ET ÉTAT ---
-        let tournaments = JSON.parse(localStorage.getItem('pokerTournaments')) || {};
-        let currentId = localStorage.getItem('currentTourneyId') || null;
+    <!-- ZONE DES MODALES (Fenêtres pop-up custom) -->
+    <div id="modalOverlay" class="modal-overlay" style="display:none;">
         
-        let tData = {
-            name: "Nouveau Tournoi",
-            duration: 15,
-            buyin: 20,
-            rebuys: 0,
-            level: 1,
-            timeRemaining: 15 * 60,
-            customSb: null,
-            players: [] 
-        };
+        <!-- Créer Tournoi -->
+        <div id="modal-new-tourney" class="modal-content" style="display:none;">
+            <h3>Créer un nouveau tournoi</h3>
+            <input type="text" id="newTourneyInput" placeholder="Ex: Soirée Poker Samedi" style="margin-bottom: 15px;">
+            <div class="controls">
+                <button class="btn-danger" onclick="hideModals()">Annuler</button>
+                <button class="btn-play" onclick="confirmCreateTourney()">Créer</button>
+            </div>
+        </div>
 
-        let timerInterval = null;
-        let isRunning = false;
-
-        // --- INITIALISATION ---
-        function init() {
-            if (Object.keys(tournaments).length === 0) {
-                createNewTournament("Mon Premier Tournoi");
-            } else {
-                if (!currentId || !tournaments[currentId]) {
-                    currentId = Object.keys(tournaments)[0];
-                }
-                loadTournament(currentId);
-            }
-            updateSelectMenu();
-        }
-
-        // --- GESTION DES TOURNOIS ---
-        function createNewTournament(defaultName = null) {
-            let name = defaultName || prompt("Nom du nouveau tournoi ?");
-            if (!name) return;
-            
-            let id = 't_' + Date.now();
-            tournaments[id] = {
-                name: name, duration: 15, buyin: 20, rebuys: 0, level: 1,
-                timeRemaining: 15 * 60, customSb: null, players: []
-            };
-            
-            currentId = id;
-            saveAll();
-            updateSelectMenu();
-            loadTournament(id);
-        }
-
-        function updateSelectMenu() {
-            const select = document.getElementById('tournamentSelect');
-            select.innerHTML = '';
-            for (let id in tournaments) {
-                let opt = document.createElement('option');
-                opt.value = id;
-                opt.textContent = tournaments[id].name;
-                if (id === currentId) opt.selected = true;
-                select.appendChild(opt);
-            }
-        }
-
-        function loadTournament(id = null) {
-            if (!id) id = document.getElementById('tournamentSelect').value;
-            currentId = id;
-            tData = tournaments[id];
-            
-            document.getElementById('roundDuration').value = tData.duration;
-            document.getElementById('buyin').value = tData.buyin;
-            document.getElementById('rebuys').value = tData.rebuys;
-            
-            if (isRunning) toggleTimer(); 
-            
-            updateUI();
-            saveAll();
-        }
-
-        function saveSettings() {
-            tData.duration = parseInt(document.getElementById('roundDuration').value) || 15;
-            tData.buyin = parseInt(document.getElementById('buyin').value) || 0;
-            saveAll();
-        }
-
-        function saveAll() {
-            tournaments[currentId] = tData;
-            localStorage.setItem('pokerTournaments', JSON.stringify(tournaments));
-            localStorage.setItem('currentTourneyId', currentId);
-        }
-
-        // --- TIMER ET BLINDS ---
-        function formatTime(seconds) {
-            const m = Math.floor(seconds / 60).toString().padStart(2, '0');
-            const s = (seconds % 60).toString().padStart(2, '0');
-            return `${m}:${s}`;
-        }
-
-        function updateBlindsDisplay() {
-            let sb, bb;
-            if (tData.customSb) {
-                sb = tData.customSb;
-            } else {
-                let multiplier = tData.level === 1 ? 1 : tData.level === 2 ? 2 : tData.level === 3 ? 3 : tData.level === 4 ? 4 : tData.level === 5 ? 6 : tData.level * 2;
-                sb = 10 * multiplier;
-            }
-            bb = sb * 2;
-            
-            document.getElementById('sb').innerText = sb;
-            document.getElementById('bb').innerText = bb;
-            document.getElementById('currentSbInput').value = sb; // Met à jour la case
-        }
-
-        function updateCustomSb() {
-            let newSb = parseInt(document.getElementById('currentSbInput').value);
-            if (newSb && newSb > 0) {
-                tData.customSb = newSb;
-                updateBlindsDisplay();
-                saveAll();
-            }
-        }
-
-        function toggleTimer() {
-            const btn = document.getElementById('btnPlay');
-            if (isRunning) {
-                clearInterval(timerInterval);
-                btn.innerText = "▶ Play";
-                btn.classList.replace('btn-pause', 'btn-play');
-            } else {
-                timerInterval = setInterval(() => {
-                    if (tData.timeRemaining > 0) {
-                        tData.timeRemaining--;
-                        document.getElementById('timeDisplay').innerText = formatTime(tData.timeRemaining);
-                    } else {
-                        clearInterval(timerInterval);
-                        alert("Fin du niveau ! Blinds augmentées.");
-                        nextLevel();
-                    }
-                }, 1000);
-                btn.innerText = "⏸ Pause";
-                btn.classList.replace('btn-play', 'btn-pause');
-            }
-            isRunning = !isRunning;
-        }
-
-        function nextLevel() {
-            tData.level++;
-            tData.customSb = null; // Annule la modification manuelle pour reprendre l'auto
-            tData.timeRemaining = tData.duration * 60;
-            updateUI();
-            saveAll();
-        }
-
-        function resetTimer() {
-            if(confirm("Remettre le chrono et les blinds à zéro pour ce tournoi ?")) {
-                tData.level = 1;
-                tData.customSb = null;
-                tData.timeRemaining = tData.duration * 60;
-                if (isRunning) toggleTimer();
-                updateUI();
-                saveAll();
-            }
-        }
-
-        function changeRebuys(delta) {
-            if (tData.rebuys + delta >= 0) {
-                tData.rebuys += delta;
-                document.getElementById('rebuys').value = tData.rebuys;
-                updateUI();
-                saveAll();
-            }
-        }
-
-        // --- GESTION DES JOUEURS ET SCORES ---
-        function addPlayer() {
-            const input = document.getElementById('newPlayerName');
-            const name = input.value.trim();
-            if (name) {
-                tData.players.push({
-                    id: Date.now(), name: name, active: true, rank: null
-                });
-                input.value = '';
-                updateUI();
-                saveAll();
-            }
-        }
-
-        function eliminatePlayer(id) {
-            let activeCount = tData.players.filter(p => p.active).length;
-            let player = tData.players.find(p => p.id === id);
-            if (player && player.active) {
-                if(confirm(`Éliminer ${player.name} à la position ${activeCount} ?`)) {
-                    player.active = false;
-                    player.rank = activeCount;
-                    updateUI();
-                    saveAll();
-                }
-            }
-        }
-
-        function reactivatePlayer(id) {
-            let player = tData.players.find(p => p.id === id);
-            if (player) {
-                player.active = true;
-                player.rank = null;
-                updateUI();
-                saveAll();
-            }
-        }
-
-        function deletePlayer(id) {
-            if(confirm("Supprimer définitivement ce joueur ?")) {
-                tData.players = tData.players.filter(p => p.id !== id);
-                let eliminated = tData.players.filter(p => !p.active).sort((a,b) => b.rank - a.rank);
-                let activeCount = tData.players.filter(p => p.active).length;
-                eliminated.forEach((p, index) => { p.rank = activeCount + index + 1; });
-                updateUI();
-                saveAll();
-            }
-        }
-
-        function updateUI() {
-            document.getElementById('timeDisplay').innerText = formatTime(tData.timeRemaining);
-            updateBlindsDisplay();
-
-            let totalEntries = tData.players.length + tData.rebuys;
-            let prizepool = totalEntries * tData.buyin;
-            document.getElementById('prizepoolTotal').innerText = prizepool;
-            document.getElementById('playerCount').innerText = tData.players.length;
-
-            const activeList = document.getElementById('activePlayersList');
-            const leaderboard = document.getElementById('leaderboard');
-            activeList.innerHTML = '';
-            leaderboard.innerHTML = '';
-
-            let activePlayers = tData.players.filter(p => p.active);
-            let eliminatedPlayers = tData.players.filter(p => !p.active).sort((a, b) => a.rank - b.rank);
-            let placesPayees = Math.max(1, Math.ceil(tData.players.length / 4));
-
-            activePlayers.forEach(p => {
-                activeList.innerHTML += `
-                    <div class="player-item">
-                        <span class="player-name">🟢 ${p.name}</span>
-                        <div>
-                            <button class="btn-small btn-danger" onclick="eliminatePlayer(${p.id})">Éliminer</button>
-                            <button class="btn-small" style="background:#555;" onclick="deletePlayer(${p.id})">❌</button>
-                        </div>
-                    </div>
-                `;
-            });
-
-            let displayLeaderboard = [...eliminatedPlayers];
-            if (activePlayers.length === 1 && tData.players.length > 1) {
-                let winner = {...activePlayers[0], rank: 1};
-                displayLeaderboard.unshift(winner);
-            }
-
-            displayLeaderboard.forEach(p => {
-                let points = Math.round((Math.sqrt(tData.players.length) / Math.sqrt(p.rank)) * 10);
-                
-                let gain = 0;
-                if (p.rank <= placesPayees) {
-                    if (placesPayees === 1) gain = prizepool;
-                    else if (placesPayees === 2) gain = p.rank === 1 ? prizepool * 0.65 : prizepool * 0.35;
-                    else if (placesPayees === 3) gain = p.rank === 1 ? prizepool * 0.50 : p.rank === 2 ? prizepool * 0.30 : prizepool * 0.20;
-                    else {
-                        let part = (placesPayees - p.rank + 1) / ((placesPayees * (placesPayees + 1)) / 2);
-                        gain = prizepool * part;
-                    }
-                }
-
-                let isFirst = p.rank === 1;
-                leaderboard.innerHTML += `
-                    <tr>
-                        <td class="${isFirst ? 'gold' : ''}">${p.rank}</td>
-                        <td class="${isFirst ? 'gold' : ''}">
-                            ${p.name} 
-                            ${p.active ? '' : `<button class="btn-small" style="padding:2px 5px; font-size:10px; margin-left:5px;" onclick="reactivatePlayer(${p.id})">↩️</button>`}
-                        </td>
-                        <td>${points}</td>
-                        <td style="color: ${gain > 0 ? 'var(--accent-green)' : 'var(--text-muted)'}">
-                            ${gain > 0 ? Math.round(gain) + ' €' : '-'}
-                        </td>
-                    </tr>
-                `;
-            });
-        }
-
-        window.onload = init;
-    </script>
-</body>
-</html>
+        <!-- Modifier Blinds -->
+        <div id="modal-blinds" class="modal-content" style="display:none
