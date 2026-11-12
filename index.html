@@ -9,7 +9,7 @@
     <link rel="apple-touch-icon" href="OIP.webp">
     <link rel="icon" href="OIP.webp" type="image/webp">
     
-    <title>Poker Timer V6</title>
+    <title>Poker Timer V7</title>
     <style>
         :root {
             --bg-color: #121212; --panel-bg: #1e1e1e; --text-main: #ffffff;
@@ -59,7 +59,7 @@
         .btn-pause { background-color: var(--accent-orange); }
         .btn-next { background-color: var(--accent-blue); }
         .btn-danger { background-color: var(--accent-red); }
-        .btn-small { padding: 8px 10px; font-size: 12px; flex: none; }
+        .btn-small { padding: 8px 8px; font-size: 12px; flex: none; }
         .btn-struct { background: #444; color: #fff; margin-top: 5px; font-size: 12px; padding: 8px 15px; border-radius: 15px; flex: none; }
 
         /* Inputs */
@@ -74,7 +74,7 @@
 
         /* Players List */
         .player-item {
-            display: flex; justify-content: space-between; align-items: center;
+            display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 5px;
             background: #2a2a2a; padding: 8px 12px; margin-bottom: 5px; border-radius: 6px;
         }
         
@@ -129,12 +129,8 @@
             <input type="number" class="input-short" id="buyin" onchange="saveSettings()">
         </div>
         <div class="row">
-            <label>Recaves Totales</label>
-            <div style="display:flex; gap:5px;">
-                <button class="btn-small" onclick="changeRebuys(-1)">-</button>
-                <input type="number" class="input-short" id="rebuys" readonly>
-                <button class="btn-small" onclick="changeRebuys(1)">+</button>
-            </div>
+            <label>Total des Recaves (Auto)</label>
+            <input type="number" class="input-short" id="rebuysTotal" readonly style="background:#222; color:var(--accent-orange); border:none;">
         </div>
     </div>
 
@@ -144,199 +140,3 @@
         <div class="row">
             <input type="text" id="newPlayerName" placeholder="Nom du joueur...">
             <button class="btn-small btn-next" onclick="addPlayer()">Ajouter</button>
-        </div>
-        <div id="activePlayersList"></div>
-    </div>
-
-    <!-- Tableau des Scores (Ce tournoi) -->
-    <div class="card">
-        <div class="row">
-            <h3 style="margin:0;">Points du Tournoi</h3>
-            <strong style="color: var(--accent-green);">Prizepool: <span id="prizepoolTotal">0</span> €</strong>
-        </div>
-        <table>
-            <thead><tr><th>Pos.</th><th>Joueur</th><th>Pts</th><th>Gain</th></tr></thead>
-            <tbody id="leaderboard"></tbody>
-        </table>
-    </div>
-
-    <!-- CUMUL GÉNÉRAL -->
-    <div class="card" style="border: 2px solid var(--accent-gold);">
-        <h3 style="margin-top:0; color:var(--accent-gold); text-align:center;">🏆 CLASSEMENT GÉNÉRAL CUMULÉ 🏆</h3>
-        <p style="font-size:12px; color:var(--text-muted); text-align:center; margin-top:-5px;">(Tous les tournois enregistrés)</p>
-        <table>
-            <thead><tr><th>Joueur</th><th>Tournois</th><th>Total Pts</th><th>Total Gains</th></tr></thead>
-            <tbody id="globalLeaderboard"></tbody>
-        </table>
-    </div>
-
-    <!-- MODALES -->
-    <div id="modalOverlay" class="modal-overlay" style="display:none;">
-        
-        <!-- Créer Tournoi -->
-        <div id="modal-new-tourney" class="modal-content" style="display:none;">
-            <h3>Créer un nouveau tournoi</h3>
-            <input type="text" id="newTourneyInput" placeholder="Ex: Soirée Poker" style="margin-bottom: 15px;">
-            <div class="controls">
-                <button class="btn-danger" onclick="hideModals()">Annuler</button>
-                <button class="btn-play" onclick="confirmCreateTourney()">Créer</button>
-            </div>
-        </div>
-
-        <!-- Renommer Tournoi -->
-        <div id="modal-rename" class="modal-content" style="display:none;">
-            <h3>Renommer le tournoi</h3>
-            <input type="text" id="renameInput" style="margin-bottom: 15px;">
-            <div class="controls">
-                <button class="btn-danger" onclick="hideModals()">Annuler</button>
-                <button class="btn-play" onclick="confirmRename()">Enregistrer</button>
-            </div>
-        </div>
-
-        <!-- Éditeur de Structure -->
-        <div id="modal-structure" class="modal-content" style="display:none; max-width: 500px;">
-            <h3 style="margin-top:0;">Structure (Blinds & Temps)</h3>
-            <div class="row" style="font-size:12px; color:var(--text-muted); font-weight:bold; margin-bottom:5px;">
-                <span style="width:30px;">Niv</span>
-                <span style="flex:1; text-align:center;">Petite B.</span>
-                <span style="flex:1; text-align:center;">Grosse B.</span>
-                <span style="flex:1; text-align:center;">Min.</span>
-                <span style="width:30px;"></span>
-            </div>
-            <div id="structureList" style="max-height: 50vh; overflow-y:auto; margin-bottom:15px; padding-right:5px;">
-                <!-- Rempli par JS -->
-            </div>
-            <button class="btn-next" style="width:100%; margin-bottom:15px;" onclick="addTempLevel()">+ Ajouter un niveau</button>
-            <div class="controls">
-                <button class="btn-danger" onclick="hideModals()">Annuler</button>
-                <button class="btn-play" onclick="saveStructure()">Valider</button>
-            </div>
-        </div>
-
-    </div>
-
-    <script>
-        // --- DONNÉES & STRUCTURE PAR DÉFAUT ---
-        // On utilise une nouvelle clé (V6) pour repartir sur une base vierge et saine.
-        let tournaments = JSON.parse(localStorage.getItem('pokerTournamentsV6')) || {};
-        let currentId = localStorage.getItem('currentTourneyIdV6') || null;
-        
-        const defaultLevels = [
-            {sb: 10, bb: 20, duration: 15}, {sb: 20, bb: 40, duration: 15},
-            {sb: 30, bb: 60, duration: 15}, {sb: 40, bb: 80, duration: 15},
-            {sb: 50, bb: 100, duration: 15}, {sb: 100, bb: 200, duration: 15},
-            {sb: 200, bb: 400, duration: 15}, {sb: 300, bb: 600, duration: 15},
-            {sb: 500, bb: 1000, duration: 15}
-        ];
-
-        let tData = null; // Sera initialisé dans loadTournament
-        let tempLevels = [];
-        let timerInterval = null;
-        let isRunning = false;
-
-        // --- INIT ---
-        function init() {
-            if (Object.keys(tournaments).length === 0) {
-                let id = 't_' + Date.now();
-                tournaments[id] = {
-                    name: "Tournoi Principal", buyin: 20, rebuys: 0, levelIndex: 0,
-                    timeRemaining: 15 * 60, levels: JSON.parse(JSON.stringify(defaultLevels)), players: []
-                };
-                currentId = id;
-            }
-            if (!currentId || !tournaments[currentId]) currentId = Object.keys(tournaments)[0];
-            
-            updateSelectMenu();
-            loadTournament(currentId);
-        }
-
-        // --- MODALES ---
-        function showModal(id) {
-            document.getElementById('modalOverlay').style.display = 'flex';
-            document.querySelectorAll('.modal-content').forEach(el => el.style.display = 'none');
-            document.getElementById(id).style.display = 'block';
-        }
-        function hideModals() { document.getElementById('modalOverlay').style.display = 'none'; }
-
-        // --- GESTION TOURNOIS ---
-        function confirmCreateTourney() {
-            let name = document.getElementById('newTourneyInput').value.trim() || "Nouveau Tournoi";
-            let id = 't_' + Date.now();
-            
-            // CORRECTION DU BUG : Création d'un objet strictement indépendant
-            tournaments[id] = {
-                name: name, buyin: 20, rebuys: 0, levelIndex: 0,
-                timeRemaining: 15 * 60, levels: JSON.parse(JSON.stringify(defaultLevels)), players: []
-            };
-            
-            hideModals();
-            document.getElementById('newTourneyInput').value = '';
-            
-            // On charge ce nouveau tournoi (ce qui mettra à jour tData et sauvegardera)
-            updateSelectMenu();
-            document.getElementById('tournamentSelect').value = id;
-            loadTournament(id);
-        }
-
-        function openRenameModal() {
-            document.getElementById('renameInput').value = tData.name;
-            showModal('modal-rename');
-        }
-        
-        function confirmRename() {
-            let val = document.getElementById('renameInput').value.trim();
-            if(val) { tData.name = val; saveAll(); updateSelectMenu(); }
-            hideModals();
-        }
-
-        function updateSelectMenu() {
-            const select = document.getElementById('tournamentSelect');
-            select.innerHTML = '';
-            for (let id in tournaments) {
-                let opt = document.createElement('option');
-                opt.value = id; opt.textContent = tournaments[id].name;
-                if (id === currentId) opt.selected = true;
-                select.appendChild(opt);
-            }
-        }
-
-        function loadTournament(id = null) {
-            if (!id) id = document.getElementById('tournamentSelect').value;
-            currentId = id;
-            
-            // On pointe tData vers le bon tournoi
-            tData = tournaments[id];
-            
-            document.getElementById('buyin').value = tData.buyin;
-            document.getElementById('rebuys').value = tData.rebuys;
-            
-            if (isRunning) toggleTimer(); // Met en pause si on change de tournoi
-            
-            updateUI(); 
-            saveAll();
-        }
-
-        function saveSettings() {
-            tData.buyin = parseInt(document.getElementById('buyin').value) || 0;
-            saveAll(); updateUI();
-        }
-
-        function saveAll() {
-            tournaments[currentId] = tData;
-            localStorage.setItem('pokerTournamentsV6', JSON.stringify(tournaments));
-            localStorage.setItem('currentTourneyIdV6', currentId);
-        }
-
-        // --- STRUCTURE (BLINDS ET TEMPS) ---
-        function openStructureModal() {
-            tempLevels = JSON.parse(JSON.stringify(tData.levels));
-            renderStructureModal();
-            showModal('modal-structure');
-        }
-
-        function renderStructureModal() {
-            const container = document.getElementById('structureList');
-            container.innerHTML = '';
-            tempLevels.forEach((lvl, i) => {
-                container.innerHTML += `
-                    <div class="row" style="background:#222; padding:5px; border-radius:5px;
