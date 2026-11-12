@@ -9,7 +9,7 @@
     <link rel="apple-touch-icon" href="OIP.webp">
     <link rel="icon" href="OIP.webp" type="image/webp">
     
-    <title>Poker Timer V2</title>
+    <title>Poker Timer V3</title>
     <style>
         :root {
             --bg-color: #121212;
@@ -71,12 +71,9 @@
 
         .blinds-display {
             text-align: center;
-            font-size: 24px;
+            font-size: 26px;
             color: var(--accent-red);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 10px;
+            font-weight: bold;
         }
 
         .controls { display: flex; gap: 10px; margin-top: 10px; }
@@ -103,7 +100,7 @@
             padding: 8px; border-radius: 6px; font-size: 14px;
             width: 100%; box-sizing: border-box;
         }
-        .input-short { width: 80px; text-align: center; }
+        .input-short { width: 80px; text-align: center; font-weight: bold; }
 
         /* Players List */
         .player-item {
@@ -132,7 +129,6 @@
     <div class="card">
         <div class="blinds-display">
             Blinds: <span id="sb">10</span> / <span id="bb">20</span>
-            <button class="btn-small" onclick="manualEditBlinds()">✏️</button>
         </div>
         <div class="timer-display" id="timeDisplay">15:00</div>
         <div class="controls">
@@ -146,18 +142,22 @@
     <div class="card">
         <h3>Paramètres en direct</h3>
         <div class="row">
+            <label style="color: var(--accent-red); font-weight: bold;">Modifier Petite Blind (SB)</label>
+            <input type="number" class="input-short" id="currentSbInput" onchange="updateCustomSb()">
+        </div>
+        <div class="row">
             <label>Durée rounds (min)</label>
-            <input type="number" class="input-short" id="roundDuration" value="15" onchange="saveSettings()">
+            <input type="number" class="input-short" id="roundDuration" onchange="saveSettings()">
         </div>
         <div class="row">
             <label>Buy-in (€)</label>
-            <input type="number" class="input-short" id="buyin" value="20" onchange="saveSettings(); updateUI()">
+            <input type="number" class="input-short" id="buyin" onchange="saveSettings(); updateUI()">
         </div>
         <div class="row">
             <label>Recaves Totales</label>
             <div style="display:flex; gap:5px;">
                 <button class="btn-small" onclick="changeRebuys(-1)">-</button>
-                <input type="number" class="input-short" id="rebuys" value="0" readonly>
+                <input type="number" class="input-short" id="rebuys" readonly>
                 <button class="btn-small" onclick="changeRebuys(1)">+</button>
             </div>
         </div>
@@ -208,8 +208,8 @@
             rebuys: 0,
             level: 1,
             timeRemaining: 15 * 60,
-            customSb: null, // Si modifié manuellement
-            players: [] // { id, name, active: true, rank: null }
+            customSb: null,
+            players: [] 
         };
 
         let timerInterval = null;
@@ -262,12 +262,11 @@
             currentId = id;
             tData = tournaments[id];
             
-            // Appliquer aux inputs
             document.getElementById('roundDuration').value = tData.duration;
             document.getElementById('buyin').value = tData.buyin;
             document.getElementById('rebuys').value = tData.rebuys;
             
-            if (isRunning) toggleTimer(); // Pause si on change
+            if (isRunning) toggleTimer(); 
             
             updateUI();
             saveAll();
@@ -296,21 +295,21 @@
             let sb, bb;
             if (tData.customSb) {
                 sb = tData.customSb;
-                bb = sb * 2;
             } else {
                 let multiplier = tData.level === 1 ? 1 : tData.level === 2 ? 2 : tData.level === 3 ? 3 : tData.level === 4 ? 4 : tData.level === 5 ? 6 : tData.level * 2;
                 sb = 10 * multiplier;
-                bb = sb * 2;
             }
+            bb = sb * 2;
+            
             document.getElementById('sb').innerText = sb;
             document.getElementById('bb').innerText = bb;
+            document.getElementById('currentSbInput').value = sb; // Met à jour la case
         }
 
-        function manualEditBlinds() {
-            let current = document.getElementById('sb').innerText;
-            let newSb = prompt("Entrez la nouvelle Petite Blind (la Grosse Blind sera le double) :", current);
-            if (newSb && !isNaN(newSb)) {
-                tData.customSb = parseInt(newSb);
+        function updateCustomSb() {
+            let newSb = parseInt(document.getElementById('currentSbInput').value);
+            if (newSb && newSb > 0) {
+                tData.customSb = newSb;
                 updateBlindsDisplay();
                 saveAll();
             }
@@ -341,7 +340,7 @@
 
         function nextLevel() {
             tData.level++;
-            tData.customSb = null; // Annule l'édition manuelle au changement de niveau
+            tData.customSb = null; // Annule la modification manuelle pour reprendre l'auto
             tData.timeRemaining = tData.duration * 60;
             updateUI();
             saveAll();
@@ -387,7 +386,7 @@
             if (player && player.active) {
                 if(confirm(`Éliminer ${player.name} à la position ${activeCount} ?`)) {
                     player.active = false;
-                    player.rank = activeCount; // Prend la position du nombre de joueurs restants
+                    player.rank = activeCount;
                     updateUI();
                     saveAll();
                 }
@@ -405,44 +404,34 @@
         }
 
         function deletePlayer(id) {
-            if(confirm("Supprimer définitivement ce joueur du tournoi ?")) {
+            if(confirm("Supprimer définitivement ce joueur ?")) {
                 tData.players = tData.players.filter(p => p.id !== id);
-                
-                // Recalculer les rangs des éliminés pour éviter les trous
                 let eliminated = tData.players.filter(p => !p.active).sort((a,b) => b.rank - a.rank);
                 let activeCount = tData.players.filter(p => p.active).length;
-                eliminated.forEach((p, index) => {
-                    p.rank = activeCount + index + 1;
-                });
-                
+                eliminated.forEach((p, index) => { p.rank = activeCount + index + 1; });
                 updateUI();
                 saveAll();
             }
         }
 
         function updateUI() {
-            // Timer & Blinds
             document.getElementById('timeDisplay').innerText = formatTime(tData.timeRemaining);
             updateBlindsDisplay();
 
-            // Prizepool
             let totalEntries = tData.players.length + tData.rebuys;
             let prizepool = totalEntries * tData.buyin;
             document.getElementById('prizepoolTotal').innerText = prizepool;
             document.getElementById('playerCount').innerText = tData.players.length;
 
-            // Listes
             const activeList = document.getElementById('activePlayersList');
             const leaderboard = document.getElementById('leaderboard');
             activeList.innerHTML = '';
             leaderboard.innerHTML = '';
 
-            // Trier les joueurs
             let activePlayers = tData.players.filter(p => p.active);
             let eliminatedPlayers = tData.players.filter(p => !p.active).sort((a, b) => a.rank - b.rank);
             let placesPayees = Math.max(1, Math.ceil(tData.players.length / 4));
 
-            // Afficher joueurs actifs
             activePlayers.forEach(p => {
                 activeList.innerHTML += `
                     <div class="player-item">
@@ -455,14 +444,12 @@
                 `;
             });
 
-            // Si 1 seul joueur actif restant, il est virtuellement 1er. On l'affiche dans le classement.
             let displayLeaderboard = [...eliminatedPlayers];
             if (activePlayers.length === 1 && tData.players.length > 1) {
                 let winner = {...activePlayers[0], rank: 1};
                 displayLeaderboard.unshift(winner);
             }
 
-            // Générer le tableau des scores
             displayLeaderboard.forEach(p => {
                 let points = Math.round((Math.sqrt(tData.players.length) / Math.sqrt(p.rank)) * 10);
                 
@@ -494,7 +481,6 @@
             });
         }
 
-        // Lancer
         window.onload = init;
     </script>
 </body>
