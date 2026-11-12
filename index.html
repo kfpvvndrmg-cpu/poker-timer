@@ -3,14 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <!-- Balises pour l'application iOS -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Poker">
     <link rel="apple-touch-icon" href="OIP.webp">
     <link rel="icon" href="OIP.webp" type="image/webp">
     
-    <title>Poker Timer</title>
+    <title>Poker Timer V2</title>
     <style>
         :root {
             --bg-color: #121212;
@@ -20,25 +19,25 @@
             --accent-red: #d32f2f;
             --accent-green: #2e7d32;
             --accent-blue: #1976d2;
+            --border-color: #333;
         }
 
         body {
             background-color: var(--bg-color);
             color: var(--text-main);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             margin: 0;
             padding: 10px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            user-select: none; /* Évite la sélection de texte sur mobile */
         }
 
         header {
             display: flex;
             align-items: center;
             gap: 15px;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             width: 100%;
             max-width: 600px;
         }
@@ -48,11 +47,6 @@
             height: 50px;
             border-radius: 10px;
             object-fit: cover;
-        }
-
-        h1 {
-            margin: 0;
-            font-size: 24px;
         }
 
         .card {
@@ -68,358 +62,440 @@
 
         /* Timer & Blinds */
         .timer-display {
-            font-size: 64px;
+            font-size: 60px;
             font-weight: bold;
             text-align: center;
-            margin: 10px 0;
+            margin: 5px 0;
             color: var(--accent-green);
         }
 
         .blinds-display {
             text-align: center;
-            font-size: 28px;
+            font-size: 24px;
             color: var(--accent-red);
-            margin-bottom: 15px;
-        }
-
-        .controls {
             display: flex;
-            justify-content: space-between;
+            justify-content: center;
+            align-items: center;
             gap: 10px;
         }
 
+        .controls { display: flex; gap: 10px; margin-top: 10px; }
+        
         button {
-            background-color: #333;
-            color: white;
-            border: none;
-            padding: 12px;
-            border-radius: 8px;
-            font-size: 16px;
-            cursor: pointer;
-            flex: 1;
-            font-weight: bold;
-            transition: background 0.2s;
+            background-color: #333; color: white; border: none;
+            padding: 10px; border-radius: 8px; font-size: 14px;
+            cursor: pointer; font-weight: bold; flex: 1;
         }
-
-        button:active {
-            background-color: #555;
-        }
-
+        button:active { background-color: #555; }
         .btn-play { background-color: var(--accent-green); }
         .btn-pause { background-color: #ff9800; }
         .btn-next { background-color: var(--accent-blue); }
+        .btn-small { padding: 6px 10px; font-size: 12px; flex: none; }
+        .btn-danger { background-color: var(--accent-red); }
 
-        /* Inputs & Flex rows */
+        /* Inputs */
         .row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 10px; gap: 10px;
         }
+        input, select {
+            background-color: #333; color: white; border: 1px solid #555;
+            padding: 8px; border-radius: 6px; font-size: 14px;
+            width: 100%; box-sizing: border-box;
+        }
+        .input-short { width: 80px; text-align: center; }
 
-        .row label {
-            font-size: 16px;
-            color: var(--text-muted);
+        /* Players List */
+        .player-item {
+            display: flex; justify-content: space-between; align-items: center;
+            background: #2a2a2a; padding: 8px 12px; margin-bottom: 5px; border-radius: 6px;
         }
-
-        input[type="number"], input[type="text"], select {
-            background-color: #333;
-            color: white;
-            border: 1px solid #444;
-            padding: 8px;
-            border-radius: 6px;
-            font-size: 16px;
-            width: 80px;
-            text-align: center;
-        }
+        .player-name { font-weight: bold; }
         
-        select {
-            width: 150px;
-        }
-
-        .stepper {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-
-        .stepper button {
-            flex: none;
-            width: 35px;
-            padding: 8px 0;
-        }
-
-        /* Points Table */
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
-        }
-
-        th, td {
-            padding: 8px;
-            text-align: center;
-            border-bottom: 1px solid #444;
-        }
-
-        th {
-            color: var(--text-muted);
-            font-weight: normal;
-        }
+        /* Table */
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+        th, td { padding: 8px; text-align: center; border-bottom: 1px solid var(--border-color); }
+        th { color: var(--text-muted); font-weight: normal; }
+        .gold { color: #ffd700; font-weight: bold; }
 
     </style>
 </head>
 <body>
 
     <header>
-        <img src="OIP.webp" alt="Logo Poker">
-        <h1 id="tournamentName">Tournoi Principal</h1>
+        <img src="OIP.webp" alt="Logo">
+        <select id="tournamentSelect" onchange="loadTournament()"></select>
+        <button class="btn-small btn-next" onclick="createNewTournament()">+ Créer</button>
     </header>
 
-    <!-- Section Chronomètre et Blinds -->
+    <!-- Timer & Blinds -->
     <div class="card">
         <div class="blinds-display">
             Blinds: <span id="sb">10</span> / <span id="bb">20</span>
+            <button class="btn-small" onclick="manualEditBlinds()">✏️</button>
         </div>
         <div class="timer-display" id="timeDisplay">15:00</div>
-        
         <div class="controls">
             <button class="btn-play" id="btnPlay" onclick="toggleTimer()">▶ Play</button>
-            <button class="btn-next" onclick="nextLevel()">⏭ Suivant</button>
+            <button class="btn-next" onclick="nextLevel()">⏭ Suiv.</button>
             <button onclick="resetTimer()">🔄 Reset</button>
         </div>
     </div>
 
-    <!-- Section Paramètres du Tournoi -->
+    <!-- Paramètres -->
     <div class="card">
-        <h3>Paramètres du Tournoi</h3>
+        <h3>Paramètres en direct</h3>
         <div class="row">
-            <label>Nom du Tournoi</label>
-            <input type="text" id="tourneyInput" value="Tournoi Principal" onchange="updateTourneyName()" style="width: 150px;">
+            <label>Durée rounds (min)</label>
+            <input type="number" class="input-short" id="roundDuration" value="15" onchange="saveSettings()">
         </div>
         <div class="row">
-            <label>Durée des rounds (min)</label>
-            <input type="number" id="roundDuration" value="15" min="1" onchange="updateDuration()">
+            <label>Buy-in (€)</label>
+            <input type="number" class="input-short" id="buyin" value="20" onchange="saveSettings(); updateUI()">
         </div>
         <div class="row">
-            <label>Petite Blind Départ</label>
-            <input type="number" id="startSb" value="10" min="1" onchange="updateCustomBlinds()">
+            <label>Recaves Totales</label>
+            <div style="display:flex; gap:5px;">
+                <button class="btn-small" onclick="changeRebuys(-1)">-</button>
+                <input type="number" class="input-short" id="rebuys" value="0" readonly>
+                <button class="btn-small" onclick="changeRebuys(1)">+</button>
+            </div>
         </div>
     </div>
 
-    <!-- Section Joueurs -->
+    <!-- Gestion des Joueurs -->
     <div class="card">
-        <h3>Gestion des Joueurs</h3>
+        <h3>Joueurs Inscrits : <span id="playerCount">0</span></h3>
         <div class="row">
-            <label>Joueurs Inscrits</label>
-            <div class="stepper">
-                <button onclick="changeValue('inscrits', -1)">-</button>
-                <input type="number" id="inscrits" value="8" min="2" onchange="calculatePoints()">
-                <button onclick="changeValue('inscrits', 1)">+</button>
-            </div>
+            <input type="text" id="newPlayerName" placeholder="Nom du joueur...">
+            <button class="btn-small btn-next" onclick="addPlayer()">Ajouter</button>
         </div>
-        <div class="row">
-            <label>Joueurs Restants</label>
-            <div class="stepper">
-                <button onclick="changeValue('restants', -1)">-</button>
-                <input type="number" id="restants" value="8" min="1">
-                <button onclick="changeValue('restants', 1)">+</button>
-            </div>
-        </div>
-        <div class="row">
-            <label>Recaves (Rebuys)</label>
-            <div class="stepper">
-                <button onclick="changeValue('rebuys', -1)">-</button>
-                <input type="number" id="rebuys" value="0" min="0" onchange="calculatePoints()">
-                <button onclick="changeValue('rebuys', 1)">+</button>
-            </div>
-        </div>
-        <div class="row">
-            <label>Prix d'entrée (Buy-in)</label>
-            <input type="number" id="buyin" value="20" min="0" onchange="calculatePoints()">
+        <div id="activePlayersList">
+            <!-- Liste des joueurs en jeu -->
         </div>
     </div>
 
-    <!-- Section Points et Gains -->
+    <!-- Tableau des Scores -->
     <div class="card">
-        <h3>Répartition (Points & Prizepool)</h3>
         <div class="row">
-            <label>Prizepool Total :</label>
-            <strong id="prizepoolTotal" style="color: var(--accent-green); font-size: 18px;">160 €</strong>
+            <h3>Classement & Scores</h3>
+            <strong style="color: var(--accent-green);">Prizepool: <span id="prizepoolTotal">0</span> €</strong>
         </div>
         <table>
             <thead>
                 <tr>
-                    <th>Position</th>
-                    <th>Points (Ligue)</th>
-                    <th>Gains Estimés</th>
+                    <th>Pos.</th>
+                    <th>Joueur</th>
+                    <th>Pts</th>
+                    <th>Gain</th>
                 </tr>
             </thead>
-            <tbody id="pointsTableBody">
+            <tbody id="leaderboard">
                 <!-- Généré par JS -->
             </tbody>
         </table>
     </div>
 
     <script>
-        // Variables Timer
-        let timeRemaining = 15 * 60; 
+        // --- DONNÉES ET ÉTAT ---
+        let tournaments = JSON.parse(localStorage.getItem('pokerTournaments')) || {};
+        let currentId = localStorage.getItem('currentTourneyId') || null;
+        
+        let tData = {
+            name: "Nouveau Tournoi",
+            duration: 15,
+            buyin: 20,
+            rebuys: 0,
+            level: 1,
+            timeRemaining: 15 * 60,
+            customSb: null, // Si modifié manuellement
+            players: [] // { id, name, active: true, rank: null }
+        };
+
         let timerInterval = null;
         let isRunning = false;
-        let currentLevel = 1;
-        
-        // Configuration de base
-        let baseDuration = 15;
-        let baseSb = 10;
 
-        // Éléments DOM
-        const timeDisplay = document.getElementById('timeDisplay');
-        const btnPlay = document.getElementById('btnPlay');
-        const sbDisplay = document.getElementById('sb');
-        const bbDisplay = document.getElementById('bb');
+        // --- INITIALISATION ---
+        function init() {
+            if (Object.keys(tournaments).length === 0) {
+                createNewTournament("Mon Premier Tournoi");
+            } else {
+                if (!currentId || !tournaments[currentId]) {
+                    currentId = Object.keys(tournaments)[0];
+                }
+                loadTournament(currentId);
+            }
+            updateSelectMenu();
+        }
 
-        // Formater le temps (MM:SS)
+        // --- GESTION DES TOURNOIS ---
+        function createNewTournament(defaultName = null) {
+            let name = defaultName || prompt("Nom du nouveau tournoi ?");
+            if (!name) return;
+            
+            let id = 't_' + Date.now();
+            tournaments[id] = {
+                name: name, duration: 15, buyin: 20, rebuys: 0, level: 1,
+                timeRemaining: 15 * 60, customSb: null, players: []
+            };
+            
+            currentId = id;
+            saveAll();
+            updateSelectMenu();
+            loadTournament(id);
+        }
+
+        function updateSelectMenu() {
+            const select = document.getElementById('tournamentSelect');
+            select.innerHTML = '';
+            for (let id in tournaments) {
+                let opt = document.createElement('option');
+                opt.value = id;
+                opt.textContent = tournaments[id].name;
+                if (id === currentId) opt.selected = true;
+                select.appendChild(opt);
+            }
+        }
+
+        function loadTournament(id = null) {
+            if (!id) id = document.getElementById('tournamentSelect').value;
+            currentId = id;
+            tData = tournaments[id];
+            
+            // Appliquer aux inputs
+            document.getElementById('roundDuration').value = tData.duration;
+            document.getElementById('buyin').value = tData.buyin;
+            document.getElementById('rebuys').value = tData.rebuys;
+            
+            if (isRunning) toggleTimer(); // Pause si on change
+            
+            updateUI();
+            saveAll();
+        }
+
+        function saveSettings() {
+            tData.duration = parseInt(document.getElementById('roundDuration').value) || 15;
+            tData.buyin = parseInt(document.getElementById('buyin').value) || 0;
+            saveAll();
+        }
+
+        function saveAll() {
+            tournaments[currentId] = tData;
+            localStorage.setItem('pokerTournaments', JSON.stringify(tournaments));
+            localStorage.setItem('currentTourneyId', currentId);
+        }
+
+        // --- TIMER ET BLINDS ---
         function formatTime(seconds) {
             const m = Math.floor(seconds / 60).toString().padStart(2, '0');
             const s = (seconds % 60).toString().padStart(2, '0');
             return `${m}:${s}`;
         }
 
-        // Mettre à jour l'affichage des blinds
         function updateBlindsDisplay() {
-            // Logique simple : la blind double tous les X niveaux (ex: 10/20, 20/40, 40/80...)
-            // Ou on applique un multiplicateur selon le niveau
-            let multiplier = currentLevel === 1 ? 1 : 
-                             currentLevel === 2 ? 2 : 
-                             currentLevel === 3 ? 3 : 
-                             currentLevel === 4 ? 4 : 
-                             currentLevel === 5 ? 6 : 
-                             currentLevel === 6 ? 8 : currentLevel * 2;
-
-            let sb = baseSb * multiplier;
-            let bb = sb * 2;
-            
-            sbDisplay.innerText = sb;
-            bbDisplay.innerText = bb;
+            let sb, bb;
+            if (tData.customSb) {
+                sb = tData.customSb;
+                bb = sb * 2;
+            } else {
+                let multiplier = tData.level === 1 ? 1 : tData.level === 2 ? 2 : tData.level === 3 ? 3 : tData.level === 4 ? 4 : tData.level === 5 ? 6 : tData.level * 2;
+                sb = 10 * multiplier;
+                bb = sb * 2;
+            }
+            document.getElementById('sb').innerText = sb;
+            document.getElementById('bb').innerText = bb;
         }
 
-        // Contrôle du timer
+        function manualEditBlinds() {
+            let current = document.getElementById('sb').innerText;
+            let newSb = prompt("Entrez la nouvelle Petite Blind (la Grosse Blind sera le double) :", current);
+            if (newSb && !isNaN(newSb)) {
+                tData.customSb = parseInt(newSb);
+                updateBlindsDisplay();
+                saveAll();
+            }
+        }
+
         function toggleTimer() {
+            const btn = document.getElementById('btnPlay');
             if (isRunning) {
                 clearInterval(timerInterval);
-                btnPlay.innerText = "▶ Play";
-                btnPlay.classList.replace('btn-pause', 'btn-play');
+                btn.innerText = "▶ Play";
+                btn.classList.replace('btn-pause', 'btn-play');
             } else {
                 timerInterval = setInterval(() => {
-                    if (timeRemaining > 0) {
-                        timeRemaining--;
-                        timeDisplay.innerText = formatTime(timeRemaining);
+                    if (tData.timeRemaining > 0) {
+                        tData.timeRemaining--;
+                        document.getElementById('timeDisplay').innerText = formatTime(tData.timeRemaining);
                     } else {
-                        // Fin du round
                         clearInterval(timerInterval);
-                        alert("Fin du niveau ! Augmentation des blinds.");
+                        alert("Fin du niveau ! Blinds augmentées.");
                         nextLevel();
                     }
                 }, 1000);
-                btnPlay.innerText = "⏸ Pause";
-                btnPlay.classList.replace('btn-play', 'btn-pause');
+                btn.innerText = "⏸ Pause";
+                btn.classList.replace('btn-play', 'btn-pause');
             }
             isRunning = !isRunning;
         }
 
         function nextLevel() {
-            currentLevel++;
-            timeRemaining = baseDuration * 60;
-            timeDisplay.innerText = formatTime(timeRemaining);
-            updateBlindsDisplay();
+            tData.level++;
+            tData.customSb = null; // Annule l'édition manuelle au changement de niveau
+            tData.timeRemaining = tData.duration * 60;
+            updateUI();
+            saveAll();
         }
 
         function resetTimer() {
-            if (isRunning) toggleTimer();
-            currentLevel = 1;
-            timeRemaining = baseDuration * 60;
-            timeDisplay.innerText = formatTime(timeRemaining);
-            updateBlindsDisplay();
-        }
-
-        function updateDuration() {
-            baseDuration = parseInt(document.getElementById('roundDuration').value) || 15;
-            if (!isRunning) {
-                timeRemaining = baseDuration * 60;
-                timeDisplay.innerText = formatTime(timeRemaining);
+            if(confirm("Remettre le chrono et les blinds à zéro pour ce tournoi ?")) {
+                tData.level = 1;
+                tData.customSb = null;
+                tData.timeRemaining = tData.duration * 60;
+                if (isRunning) toggleTimer();
+                updateUI();
+                saveAll();
             }
         }
 
-        function updateCustomBlinds() {
-            baseSb = parseInt(document.getElementById('startSb').value) || 10;
-            updateBlindsDisplay();
-        }
-
-        function updateTourneyName() {
-            document.getElementById('tournamentName').innerText = document.getElementById('tourneyInput').value;
-        }
-
-        // Gestion des compteurs (+ / -)
-        function changeValue(id, delta) {
-            const input = document.getElementById(id);
-            let val = parseInt(input.value) + delta;
-            if (val >= input.min) {
-                input.value = val;
-                if (id !== 'restants') calculatePoints();
+        function changeRebuys(delta) {
+            if (tData.rebuys + delta >= 0) {
+                tData.rebuys += delta;
+                document.getElementById('rebuys').value = tData.rebuys;
+                updateUI();
+                saveAll();
             }
         }
 
-        // Calcul des points (Basé sur une formule type racine carrée) et répartition du Prizepool
-        function calculatePoints() {
-            const inscrits = parseInt(document.getElementById('inscrits').value) || 2;
-            const rebuys = parseInt(document.getElementById('rebuys').value) || 0;
-            const buyin = parseFloat(document.getElementById('buyin').value) || 0;
-            
-            const totalEntrees = inscrits + rebuys;
-            const prizepool = totalEntrees * buyin;
-            document.getElementById('prizepoolTotal').innerText = prizepool + " €";
+        // --- GESTION DES JOUEURS ET SCORES ---
+        function addPlayer() {
+            const input = document.getElementById('newPlayerName');
+            const name = input.value.trim();
+            if (name) {
+                tData.players.push({
+                    id: Date.now(), name: name, active: true, rank: null
+                });
+                input.value = '';
+                updateUI();
+                saveAll();
+            }
+        }
 
-            // Déterminer le nombre de places payées (environ 25% des inscrits)
-            let placesPayees = Math.max(1, Math.ceil(inscrits / 4));
-            
-            const tbody = document.getElementById('pointsTableBody');
-            tbody.innerHTML = '';
+        function eliminatePlayer(id) {
+            let activeCount = tData.players.filter(p => p.active).length;
+            let player = tData.players.find(p => p.id === id);
+            if (player && player.active) {
+                if(confirm(`Éliminer ${player.name} à la position ${activeCount} ?`)) {
+                    player.active = false;
+                    player.rank = activeCount; // Prend la position du nombre de joueurs restants
+                    updateUI();
+                    saveAll();
+                }
+            }
+        }
 
-            for (let i = 1; i <= inscrits; i++) {
-                // Formule de points type ligue : Racine(Inscrits) / Racine(Position) * 10
-                let points = Math.round((Math.sqrt(inscrits) / Math.sqrt(i)) * 10);
+        function reactivatePlayer(id) {
+            let player = tData.players.find(p => p.id === id);
+            if (player) {
+                player.active = true;
+                player.rank = null;
+                updateUI();
+                saveAll();
+            }
+        }
+
+        function deletePlayer(id) {
+            if(confirm("Supprimer définitivement ce joueur du tournoi ?")) {
+                tData.players = tData.players.filter(p => p.id !== id);
                 
-                // Répartition simplifiée du prizepool (50% au 1er, 30% au 2e, 20% au 3e...)
+                // Recalculer les rangs des éliminés pour éviter les trous
+                let eliminated = tData.players.filter(p => !p.active).sort((a,b) => b.rank - a.rank);
+                let activeCount = tData.players.filter(p => p.active).length;
+                eliminated.forEach((p, index) => {
+                    p.rank = activeCount + index + 1;
+                });
+                
+                updateUI();
+                saveAll();
+            }
+        }
+
+        function updateUI() {
+            // Timer & Blinds
+            document.getElementById('timeDisplay').innerText = formatTime(tData.timeRemaining);
+            updateBlindsDisplay();
+
+            // Prizepool
+            let totalEntries = tData.players.length + tData.rebuys;
+            let prizepool = totalEntries * tData.buyin;
+            document.getElementById('prizepoolTotal').innerText = prizepool;
+            document.getElementById('playerCount').innerText = tData.players.length;
+
+            // Listes
+            const activeList = document.getElementById('activePlayersList');
+            const leaderboard = document.getElementById('leaderboard');
+            activeList.innerHTML = '';
+            leaderboard.innerHTML = '';
+
+            // Trier les joueurs
+            let activePlayers = tData.players.filter(p => p.active);
+            let eliminatedPlayers = tData.players.filter(p => !p.active).sort((a, b) => a.rank - b.rank);
+            let placesPayees = Math.max(1, Math.ceil(tData.players.length / 4));
+
+            // Afficher joueurs actifs
+            activePlayers.forEach(p => {
+                activeList.innerHTML += `
+                    <div class="player-item">
+                        <span class="player-name">🟢 ${p.name}</span>
+                        <div>
+                            <button class="btn-small btn-danger" onclick="eliminatePlayer(${p.id})">Éliminer</button>
+                            <button class="btn-small" style="background:#555;" onclick="deletePlayer(${p.id})">❌</button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            // Si 1 seul joueur actif restant, il est virtuellement 1er. On l'affiche dans le classement.
+            let displayLeaderboard = [...eliminatedPlayers];
+            if (activePlayers.length === 1 && tData.players.length > 1) {
+                let winner = {...activePlayers[0], rank: 1};
+                displayLeaderboard.unshift(winner);
+            }
+
+            // Générer le tableau des scores
+            displayLeaderboard.forEach(p => {
+                let points = Math.round((Math.sqrt(tData.players.length) / Math.sqrt(p.rank)) * 10);
+                
                 let gain = 0;
-                if (i <= placesPayees) {
+                if (p.rank <= placesPayees) {
                     if (placesPayees === 1) gain = prizepool;
-                    else if (placesPayees === 2) gain = i === 1 ? prizepool * 0.65 : prizepool * 0.35;
-                    else if (placesPayees === 3) gain = i === 1 ? prizepool * 0.50 : i === 2 ? prizepool * 0.30 : prizepool * 0.20;
+                    else if (placesPayees === 2) gain = p.rank === 1 ? prizepool * 0.65 : prizepool * 0.35;
+                    else if (placesPayees === 3) gain = p.rank === 1 ? prizepool * 0.50 : p.rank === 2 ? prizepool * 0.30 : prizepool * 0.20;
                     else {
-                        // Formule dégressive générique pour plus de 3 places payées
-                        let part = (placesPayees - i + 1) / ((placesPayees * (placesPayees + 1)) / 2);
+                        let part = (placesPayees - p.rank + 1) / ((placesPayees * (placesPayees + 1)) / 2);
                         gain = prizepool * part;
                     }
                 }
 
-                tbody.innerHTML += `
+                let isFirst = p.rank === 1;
+                leaderboard.innerHTML += `
                     <tr>
-                        <td>${i}${i === 1 ? 'er' : 'e'}</td>
-                        <td>${points} pts</td>
+                        <td class="${isFirst ? 'gold' : ''}">${p.rank}</td>
+                        <td class="${isFirst ? 'gold' : ''}">
+                            ${p.name} 
+                            ${p.active ? '' : `<button class="btn-small" style="padding:2px 5px; font-size:10px; margin-left:5px;" onclick="reactivatePlayer(${p.id})">↩️</button>`}
+                        </td>
+                        <td>${points}</td>
                         <td style="color: ${gain > 0 ? 'var(--accent-green)' : 'var(--text-muted)'}">
                             ${gain > 0 ? Math.round(gain) + ' €' : '-'}
                         </td>
                     </tr>
                 `;
-            }
+            });
         }
 
-        // Initialisation au chargement
-        window.onload = () => {
-            timeDisplay.innerText = formatTime(timeRemaining);
-            updateBlindsDisplay();
-            calculatePoints();
-        };
+        // Lancer
+        window.onload = init;
     </script>
 </body>
 </html>
