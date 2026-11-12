@@ -9,7 +9,7 @@
     <link rel="apple-touch-icon" href="OIP.webp">
     <link rel="icon" href="OIP.webp" type="image/webp">
     
-    <title>Poker Timer V10</title>
+    <title>Poker Timer V12</title>
     <style>
         :root {
             --bg-color: #121212; --panel-bg: #1e1e1e; --text-main: #ffffff;
@@ -49,15 +49,16 @@
             font-size: 14px; background: #333; padding: 4px 10px; border-radius: 20px; color: white; margin-bottom: 5px;
         }
 
-        .controls { display: flex; gap: 10px; margin-top: 10px; }
+        .controls { display: flex; gap: 8px; margin-top: 10px; }
         
         button {
-            background-color: #333; color: white; border: none; padding: 12px; border-radius: 8px;
-            font-size: 14px; cursor: pointer; font-weight: bold; flex: 1; transition: 0.2s;
+            background-color: #333; color: white; border: none; padding: 10px 5px; border-radius: 8px;
+            font-size: 13px; cursor: pointer; font-weight: bold; flex: 1; transition: 0.2s;
         }
         .btn-play { background-color: var(--accent-green); }
         .btn-pause { background-color: var(--accent-orange); }
         .btn-next { background-color: var(--accent-blue); }
+        .btn-prev { background-color: #555; }
         .btn-danger { background-color: var(--accent-red); }
         .btn-small { padding: 8px 8px; font-size: 12px; flex: none; }
         .btn-struct { background: #444; color: #fff; margin-top: 5px; font-size: 12px; padding: 8px 15px; border-radius: 15px; flex: none; }
@@ -117,6 +118,7 @@
         <div class="timer-display" id="timeDisplay">15:00</div>
         <div class="controls">
             <button class="btn-play" id="btnPlay" onclick="toggleTimer()">▶ Play</button>
+            <button class="btn-prev" onclick="prevLevel()">⏮ Préc.</button>
             <button class="btn-next" onclick="nextLevel()">⏭ Suiv.</button>
             <button onclick="confirmAction(this, resetTimer, '🔄 Reset')">🔄 Reset</button>
         </div>
@@ -235,8 +237,8 @@
 
     <script>
         // --- DONNÉES & STRUCTURE PAR DÉFAUT ---
-        let tournaments = JSON.parse(localStorage.getItem('pokerTournamentsV10')) || {};
-        let currentId = localStorage.getItem('currentTourneyIdV10') || null;
+        let tournaments = JSON.parse(localStorage.getItem('pokerTournamentsV12')) || {};
+        let currentId = localStorage.getItem('currentTourneyIdV12') || null;
         
         const defaultLevels = [
             {sb: 10, bb: 20, duration: 15}, {sb: 20, bb: 40, duration: 15},
@@ -250,6 +252,9 @@
         let tempLevels = [];
         let timerInterval = null;
         let isRunning = false;
+        
+        // Audio Context pour la sonnerie
+        let audioCtx = null;
 
         // --- INIT ---
         function init() {
@@ -265,6 +270,29 @@
             
             updateSelectMenu();
             loadTournament(currentId);
+        }
+
+        // --- SONNERIE ---
+        function playAlarm() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            
+            for(let i=0; i<3; i++) {
+                setTimeout(() => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.value = 800;
+                    
+                    gain.gain.setValueAtTime(1, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                    
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.3);
+                }, i * 400); 
+            }
         }
 
         // --- MODALES ---
@@ -368,8 +396,8 @@
 
         function saveAll() {
             tournaments[currentId] = tData;
-            localStorage.setItem('pokerTournamentsV10', JSON.stringify(tournaments));
-            localStorage.setItem('currentTourneyIdV10', currentId);
+            localStorage.setItem('pokerTournamentsV12', JSON.stringify(tournaments));
+            localStorage.setItem('currentTourneyIdV12', currentId);
         }
 
         // --- GESTION GAINS MANUELS ---
@@ -446,25 +474,41 @@
         }
 
         function toggleTimer() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            
             const btn = document.getElementById('btnPlay');
+            
             if (isRunning) {
                 clearInterval(timerInterval);
                 btn.innerText = "▶ Play"; btn.classList.replace('btn-pause', 'btn-play');
+                isRunning = false;
             } else {
+                isRunning = true;
+                btn.innerText = "⏸ Pause"; btn.classList.replace('btn-play', 'btn-pause');
+                
                 timerInterval = setInterval(() => {
                     if (tData.timeRemaining > 0) {
                         tData.timeRemaining--;
                         document.getElementById('timeDisplay').innerText = formatTime(tData.timeRemaining);
                     } else {
+                        playAlarm();
                         document.body.style.backgroundColor = "var(--accent-red)";
                         setTimeout(() => document.body.style.backgroundColor = "var(--bg-color)", 1000);
-                        clearInterval(timerInterval);
-                        nextLevel();
+                        
+                        if(tData.levelIndex < tData.levels.length - 1) {
+                            tData.levelIndex++;
+                            tData.timeRemaining = tData.levels[tData.levelIndex].duration * 60;
+                            updateUI(); 
+                            saveAll();
+                        } else {
+                            clearInterval(timerInterval);
+                            isRunning = false;
+                            btn.innerText = "▶ Play"; btn.classList.replace('btn-pause', 'btn-play');
+                        }
                     }
                 }, 1000);
-                btn.innerText = "⏸ Pause"; btn.classList.replace('btn-play', 'btn-pause');
             }
-            isRunning = !isRunning;
         }
 
         function nextLevel() {
@@ -472,14 +516,22 @@
                 tData.levelIndex++;
             }
             tData.timeRemaining = tData.levels[tData.levelIndex].duration * 60;
-            if(isRunning) toggleTimer();
+            updateUI(); saveAll();
+        }
+
+        function prevLevel() {
+            if(tData.levelIndex > 0) {
+                tData.levelIndex--;
+            }
+            // Si on est déjà au niveau 1 (index 0), ça relance simplement le chrono du niveau 1
+            tData.timeRemaining = tData.levels[tData.levelIndex].duration * 60;
             updateUI(); saveAll();
         }
 
         function resetTimer() {
             tData.levelIndex = 0;
             tData.timeRemaining = tData.levels[0].duration * 60;
-            if (isRunning) toggleTimer();
+            if (isRunning) toggleTimer(); 
             updateUI(); saveAll();
         }
 
@@ -556,12 +608,10 @@
             let malusVal = tourney.rebuyMalus !== undefined ? tourney.rebuyMalus : 1;
 
             displayLeaderboard.forEach(p => {
-                // Points calculés avec Malus
                 let basePoints = Math.round((Math.sqrt(tourney.players.length) / Math.sqrt(p.rank)) * 10);
                 let malusDeduction = (p.rebuys || 0) * malusVal;
-                let points = Math.max(0, basePoints - malusDeduction); // Ne descend pas en dessous de 0
+                let points = Math.max(0, basePoints - malusDeduction); 
                 
-                // Gain auto
                 let gain = 0;
                 if (p.rank <= placesPayees) {
                     if (placesPayees === 1) gain = prizepool;
@@ -573,7 +623,6 @@
                     }
                 }
                 
-                // Écrasement manuel
                 let isManual = p.manualPrize !== undefined && p.manualPrize !== null;
                 if (isManual) gain = p.manualPrize;
 
