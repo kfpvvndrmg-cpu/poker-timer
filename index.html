@@ -9,7 +9,7 @@
     <link rel="apple-touch-icon" href="OIP.webp">
     <link rel="icon" href="OIP.webp" type="image/webp">
     
-    <title>Poker Timer V9</title>
+    <title>Poker Timer V10</title>
     <style>
         :root {
             --bg-color: #121212; --panel-bg: #1e1e1e; --text-main: #ffffff;
@@ -79,8 +79,8 @@
         }
         
         /* Table */
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
-        th, td { padding: 8px; text-align: center; border-bottom: 1px solid var(--border-color); }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+        th, td { padding: 6px; text-align: center; border-bottom: 1px solid var(--border-color); }
         th { color: var(--text-muted); font-weight: normal; }
         .gold { color: var(--accent-gold); font-weight: bold; }
 
@@ -124,13 +124,21 @@
 
     <!-- Paramètres -->
     <div class="card">
-        <h3>Paramètres financiers</h3>
+        <h3>Paramètres financiers & Règles</h3>
         <div class="row">
             <label>Buy-in (€)</label>
             <input type="number" class="input-short" id="buyin" onchange="saveSettings()">
         </div>
         <div class="row">
-            <label>Total des Recaves (Auto)</label>
+            <label>Malus (Pts / Recave)</label>
+            <div style="display:flex; gap:5px;">
+                <button class="btn-small" onclick="changeMalus(-1)">-</button>
+                <input type="number" class="input-short" id="rebuyMalus" readonly>
+                <button class="btn-small" onclick="changeMalus(1)">+</button>
+            </div>
+        </div>
+        <div class="row">
+            <label>Total des Recaves</label>
             <input type="number" class="input-short" id="rebuysTotal" readonly style="background:#222; color:var(--accent-orange); border:none;">
         </div>
     </div>
@@ -162,7 +170,7 @@
         <h3 style="margin-top:0; color:var(--accent-gold); text-align:center;">🏆 CLASSEMENT GÉNÉRAL CUMULÉ 🏆</h3>
         <p style="font-size:12px; color:var(--text-muted); text-align:center; margin-top:-5px;">(Tous les tournois enregistrés)</p>
         <table>
-            <thead><tr><th>Joueur</th><th>Tournois</th><th>Total Pts</th><th>Total Gains</th></tr></thead>
+            <thead><tr><th>Joueur</th><th>T.</th><th>Rec.</th><th>Pts</th><th>Gains</th></tr></thead>
             <tbody id="globalLeaderboard"></tbody>
         </table>
     </div>
@@ -190,6 +198,19 @@
             </div>
         </div>
 
+        <!-- Modifier Gain Manuel -->
+        <div id="modal-prize" class="modal-content" style="display:none;">
+            <h3 id="prizeModalTitle">Définir le gain</h3>
+            <p style="font-size:12px; color:var(--text-muted); margin-top:-5px;">Ce montant écrasera le calcul automatique par pourcentage.</p>
+            <input type="number" id="prizeInput" placeholder="Montant en €" style="margin-bottom: 15px;">
+            <input type="hidden" id="prizePlayerId">
+            <div class="controls">
+                <button class="btn-danger" onclick="hideModals()">Annuler</button>
+                <button class="btn-next" onclick="resetManualPrize()">Mode Auto</button>
+                <button class="btn-play" onclick="saveManualPrize()">Valider</button>
+            </div>
+        </div>
+
         <!-- Éditeur de Structure -->
         <div id="modal-structure" class="modal-content" style="display:none; max-width: 500px;">
             <h3 style="margin-top:0;">Structure (Blinds & Temps)</h3>
@@ -214,8 +235,8 @@
 
     <script>
         // --- DONNÉES & STRUCTURE PAR DÉFAUT ---
-        let tournaments = JSON.parse(localStorage.getItem('pokerTournamentsV9')) || {};
-        let currentId = localStorage.getItem('currentTourneyIdV9') || null;
+        let tournaments = JSON.parse(localStorage.getItem('pokerTournamentsV10')) || {};
+        let currentId = localStorage.getItem('currentTourneyIdV10') || null;
         
         const defaultLevels = [
             {sb: 10, bb: 20, duration: 15}, {sb: 20, bb: 40, duration: 15},
@@ -235,7 +256,7 @@
             if (Object.keys(tournaments).length === 0) {
                 let id = 't_' + Date.now();
                 tournaments[id] = {
-                    name: "Tournoi Principal", buyin: 20, levelIndex: 0,
+                    name: "Tournoi Principal", buyin: 20, rebuyMalus: 1, levelIndex: 0,
                     timeRemaining: 15 * 60, levels: JSON.parse(JSON.stringify(defaultLevels)), players: []
                 };
                 currentId = id;
@@ -260,7 +281,7 @@
             let id = 't_' + Date.now();
             
             tournaments[id] = {
-                name: name, buyin: 20, levelIndex: 0,
+                name: name, buyin: 20, rebuyMalus: 1, levelIndex: 0,
                 timeRemaining: 15 * 60, levels: JSON.parse(JSON.stringify(defaultLevels)), players: []
             };
             
@@ -286,21 +307,18 @@
         }
 
         function deleteCurrentTournament() {
-            if (isRunning) toggleTimer(); // Met en pause le chrono si on supprime en cours de jeu
-            
-            delete tournaments[currentId]; // Supprime de la liste des tournois
+            if (isRunning) toggleTimer(); 
+            delete tournaments[currentId];
             
             let remainingIds = Object.keys(tournaments);
             if (remainingIds.length === 0) {
-                // Si on a tout supprimé, on recrée un tournoi par défaut
                 let id = 't_' + Date.now();
                 tournaments[id] = {
-                    name: "Tournoi Principal", buyin: 20, levelIndex: 0,
+                    name: "Tournoi Principal", buyin: 20, rebuyMalus: 1, levelIndex: 0,
                     timeRemaining: 15 * 60, levels: JSON.parse(JSON.stringify(defaultLevels)), players: []
                 };
                 currentId = id;
             } else {
-                // Sinon on sélectionne le premier de la liste restante
                 currentId = remainingIds[0];
             }
             
@@ -326,11 +344,13 @@
             currentId = id;
             tData = tournaments[id];
             
+            if (tData.rebuyMalus === undefined) tData.rebuyMalus = 1;
+
             document.getElementById('buyin').value = tData.buyin;
-            if (isRunning) toggleTimer(); 
+            document.getElementById('rebuyMalus').value = tData.rebuyMalus;
             
-            updateUI(); 
-            saveAll();
+            if (isRunning) toggleTimer(); 
+            updateUI(); saveAll();
         }
 
         function saveSettings() {
@@ -338,10 +358,45 @@
             saveAll(); updateUI();
         }
 
+        function changeMalus(delta) {
+            if (tData.rebuyMalus + delta >= 0) {
+                tData.rebuyMalus += delta;
+                document.getElementById('rebuyMalus').value = tData.rebuyMalus;
+                updateUI(); saveAll();
+            }
+        }
+
         function saveAll() {
             tournaments[currentId] = tData;
-            localStorage.setItem('pokerTournamentsV9', JSON.stringify(tournaments));
-            localStorage.setItem('currentTourneyIdV9', currentId);
+            localStorage.setItem('pokerTournamentsV10', JSON.stringify(tournaments));
+            localStorage.setItem('currentTourneyIdV10', currentId);
+        }
+
+        // --- GESTION GAINS MANUELS ---
+        function openPrizeModal(id, name, currentPrize) {
+            document.getElementById('prizeModalTitle').innerText = "Gain de " + name;
+            document.getElementById('prizeInput').value = currentPrize || '';
+            document.getElementById('prizePlayerId').value = id;
+            showModal('modal-prize');
+        }
+
+        function saveManualPrize() {
+            let id = parseInt(document.getElementById('prizePlayerId').value);
+            let val = parseFloat(document.getElementById('prizeInput').value);
+            let player = tData.players.find(p => p.id === id);
+            if (player) {
+                player.manualPrize = isNaN(val) ? null : val;
+                saveAll(); updateUI(); hideModals();
+            }
+        }
+
+        function resetManualPrize() {
+            let id = parseInt(document.getElementById('prizePlayerId').value);
+            let player = tData.players.find(p => p.id === id);
+            if (player) {
+                player.manualPrize = null;
+                saveAll(); updateUI(); hideModals();
+            }
         }
 
         // --- STRUCTURE (BLINDS ET TEMPS) ---
@@ -450,7 +505,7 @@
             const name = input.value.trim();
             if (name) {
                 let cleanName = name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
-                tData.players.push({ id: Date.now(), name: cleanName, active: true, rank: null, rebuys: 0 });
+                tData.players.push({ id: Date.now(), name: cleanName, active: true, rank: null, rebuys: 0, manualPrize: null });
                 input.value = ''; updateUI(); saveAll();
             }
         }
@@ -498,8 +553,15 @@
                 displayLeaderboard.unshift({...activePlayers[0], rank: 1});
             }
 
+            let malusVal = tourney.rebuyMalus !== undefined ? tourney.rebuyMalus : 1;
+
             displayLeaderboard.forEach(p => {
-                let points = Math.round((Math.sqrt(tourney.players.length) / Math.sqrt(p.rank)) * 10);
+                // Points calculés avec Malus
+                let basePoints = Math.round((Math.sqrt(tourney.players.length) / Math.sqrt(p.rank)) * 10);
+                let malusDeduction = (p.rebuys || 0) * malusVal;
+                let points = Math.max(0, basePoints - malusDeduction); // Ne descend pas en dessous de 0
+                
+                // Gain auto
                 let gain = 0;
                 if (p.rank <= placesPayees) {
                     if (placesPayees === 1) gain = prizepool;
@@ -510,8 +572,14 @@
                         gain = prizepool * part;
                     }
                 }
-                results.push({ name: p.name, rank: p.rank, points: points, gain: gain });
+                
+                // Écrasement manuel
+                let isManual = p.manualPrize !== undefined && p.manualPrize !== null;
+                if (isManual) gain = p.manualPrize;
+
+                results.push({ name: p.name, rank: p.rank, points: points, gain: gain, rebuys: p.rebuys || 0, isManual: isManual });
             });
+            
             return { totalRebuys, prizepool, results, activePlayers, displayLeaderboard };
         }
 
@@ -532,7 +600,7 @@
             activeList.innerHTML = ''; leaderboard.innerHTML = '';
 
             tRes.activePlayers.forEach(p => {
-                let rebuyText = p.rebuys > 0 ? ` <span style="font-size:12px; color:var(--accent-orange);">(${p.rebuys} recave${p.rebuys>1?'s':''})</span>` : '';
+                let rebuyText = p.rebuys > 0 ? ` <span style="font-size:12px; color:var(--accent-orange);">(${p.rebuys} rec.)</span>` : '';
                 activeList.innerHTML += `
                     <div class="player-item">
                         <span style="font-weight:bold;">🟢 ${p.name}${rebuyText}</span>
@@ -548,6 +616,12 @@
             tRes.results.forEach(res => {
                 let isFirst = res.rank === 1;
                 let playerObj = tData.players.find(p => p.name === res.name);
+                
+                let gainText = res.gain > 0 ? Math.round(res.gain) + ' €' : '-';
+                if (res.isManual) {
+                    gainText = '<span style="color:var(--accent-gold);">' + res.gain + ' €</span>';
+                }
+
                 leaderboard.innerHTML += `
                     <tr>
                         <td class="${isFirst ? 'gold' : ''}">${res.rank}</td>
@@ -556,8 +630,9 @@
                             ${playerObj.active ? '' : `<button class="btn-small" style="padding:2px 5px; font-size:10px; margin-left:5px;" onclick="reactivatePlayer(${playerObj.id})">↩️</button>`}
                         </td>
                         <td>${res.points}</td>
-                        <td style="color: ${res.gain > 0 ? 'var(--accent-green)' : 'var(--text-muted)'}">
-                            ${res.gain > 0 ? Math.round(res.gain) + ' €' : '-'}
+                        <td style="color: ${res.gain > 0 ? 'var(--accent-green)' : 'var(--text-muted)'}; display:flex; justify-content:center; align-items:center; gap:5px;">
+                            ${gainText}
+                            <button class="btn-small" style="background:#444; padding:2px 5px; font-size:10px;" onclick="openPrizeModal(${playerObj.id}, '${res.name}', ${res.isManual ? res.gain : Math.round(res.gain)})">✏️</button>
                         </td>
                     </tr>
                 `;
@@ -578,11 +653,12 @@
                 
                 tRes.results.forEach(res => {
                     if(!globalStats[res.name]) {
-                        globalStats[res.name] = { points: 0, gain: 0, tournoisJoues: 0 };
+                        globalStats[res.name] = { points: 0, gain: 0, tournoisJoues: 0, rebuys: 0 };
                     }
                     globalStats[res.name].points += res.points;
                     globalStats[res.name].gain += res.gain;
                     globalStats[res.name].tournoisJoues += 1;
+                    globalStats[res.name].rebuys += res.rebuys;
                 });
             }
 
@@ -595,7 +671,7 @@
             gLeaderboard.innerHTML = '';
             
             if(globalArray.length === 0) {
-                gLeaderboard.innerHTML = '<tr><td colspan="4" style="color:#777;">Aucune donnée</td></tr>';
+                gLeaderboard.innerHTML = '<tr><td colspan="5" style="color:#777;">Aucune donnée</td></tr>';
                 return;
             }
 
@@ -606,6 +682,7 @@
                     <tr style="color:${color}; font-weight:${index===0?'bold':'normal'};">
                         <td>${badge}${p.name}</td>
                         <td>${p.tournoisJoues}</td>
+                        <td style="color:var(--accent-orange)">${p.rebuys}</td>
                         <td>${p.points}</td>
                         <td style="color:var(--accent-green)">${Math.round(p.gain)} €</td>
                     </tr>
