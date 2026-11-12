@@ -236,4 +236,372 @@
         </div>
 
         <!-- Modifier Blinds -->
-        <div id="modal-blinds" class="modal-content" style="display:none
+        <div id="modal-blinds" class="modal-content" style="display:none;">
+            <h3>Structure des Blinds</h3>
+            <p style="font-size:12px; color:var(--text-muted); margin-top:0;">
+                Entrez la liste des Petites Blinds (séparées par des virgules). La Grosse Blind sera automatiquement le double.
+            </p>
+            <textarea id="blindsListInput" rows="5" style="margin-bottom: 15px; font-family: monospace;"></textarea>
+            <div class="controls">
+                <button class="btn-danger" onclick="hideModals()">Annuler</button>
+                <button class="btn-play" onclick="saveBlindsSchedule()">Enregistrer</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- DONNÉES ---
+        let tournaments = JSON.parse(localStorage.getItem('pokerTournaments')) || {};
+        let currentId = localStorage.getItem('currentTourneyId') || null;
+        
+        // Structure par défaut des blinds
+        const defaultBlinds = [10, 20, 30, 40, 50, 75, 100, 150, 200, 300, 400, 500, 1000, 2000];
+
+        let tData = {
+            name: "Nouveau Tournoi",
+            duration: 15,
+            buyin: 20,
+            rebuys: 0,
+            level: 1,
+            timeRemaining: 15 * 60,
+            blindsSchedule: [...defaultBlinds],
+            players: [] 
+        };
+
+        let timerInterval = null;
+        let isRunning = false;
+
+        // --- INITIALISATION ---
+        function init() {
+            if (Object.keys(tournaments).length === 0) {
+                // Créer le tout premier si rien n'existe
+                let id = 't_' + Date.now();
+                tournaments[id] = JSON.parse(JSON.stringify(tData));
+                tournaments[id].name = "Mon Premier Tournoi";
+                currentId = id;
+                saveAll();
+            }
+            if (!currentId || !tournaments[currentId]) {
+                currentId = Object.keys(tournaments)[0];
+            }
+            loadTournament(currentId);
+            updateSelectMenu();
+        }
+
+        // --- GESTION DES MODALES ---
+        function showModal(id) {
+            document.getElementById('modalOverlay').style.display = 'flex';
+            document.querySelectorAll('.modal-content').forEach(el => el.style.display = 'none');
+            document.getElementById(id).style.display = 'block';
+        }
+        function hideModals() {
+            document.getElementById('modalOverlay').style.display = 'none';
+        }
+
+        // --- GESTION DES TOURNOIS ---
+        function confirmCreateTourney() {
+            let name = document.getElementById('newTourneyInput').value.trim();
+            if (!name) name = "Nouveau Tournoi";
+            
+            let id = 't_' + Date.now();
+            tournaments[id] = {
+                name: name, duration: 15, buyin: 20, rebuys: 0, level: 1,
+                timeRemaining: 15 * 60, blindsSchedule: [...defaultBlinds], players: []
+            };
+            
+            currentId = id;
+            saveAll();
+            updateSelectMenu();
+            loadTournament(id);
+            hideModals();
+            document.getElementById('newTourneyInput').value = '';
+        }
+
+        function renameTournament() {
+            let newName = document.getElementById('tourneyNameInput').value.trim();
+            if (newName) {
+                tData.name = newName;
+                saveAll();
+                updateSelectMenu();
+            }
+        }
+
+        function updateSelectMenu() {
+            const select = document.getElementById('tournamentSelect');
+            select.innerHTML = '';
+            for (let id in tournaments) {
+                let opt = document.createElement('option');
+                opt.value = id;
+                opt.textContent = tournaments[id].name;
+                if (id === currentId) opt.selected = true;
+                select.appendChild(opt);
+            }
+        }
+
+        function loadTournament(id = null) {
+            if (!id) id = document.getElementById('tournamentSelect').value;
+            currentId = id;
+            tData = tournaments[id];
+            
+            // Mise à jour pour les anciens tournois sauvegardés avant la V4
+            if (!tData.blindsSchedule) tData.blindsSchedule = [...defaultBlinds];
+            
+            document.getElementById('tourneyNameInput').value = tData.name;
+            document.getElementById('roundDuration').value = tData.duration;
+            document.getElementById('buyin').value = tData.buyin;
+            document.getElementById('rebuys').value = tData.rebuys;
+            
+            if (isRunning) toggleTimer(); 
+            
+            updateUI();
+            saveAll();
+        }
+
+        function saveSettings() {
+            tData.duration = parseInt(document.getElementById('roundDuration').value) || 15;
+            tData.buyin = parseInt(document.getElementById('buyin').value) || 0;
+            saveAll();
+        }
+
+        function saveAll() {
+            tournaments[currentId] = tData;
+            localStorage.setItem('pokerTournaments', JSON.stringify(tournaments));
+            localStorage.setItem('currentTourneyId', currentId);
+        }
+
+        // --- TIMER ET BLINDS ---
+        function formatTime(seconds) {
+            const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+            const s = (seconds % 60).toString().padStart(2, '0');
+            return `${m}:${s}`;
+        }
+
+        function openBlindsModal() {
+            document.getElementById('blindsListInput').value = tData.blindsSchedule.join(', ');
+            showModal('modal-blinds');
+        }
+
+        function saveBlindsSchedule() {
+            let str = document.getElementById('blindsListInput').value;
+            let arr = str.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n) && n > 0);
+            
+            if (arr.length > 0) {
+                tData.blindsSchedule = arr;
+                saveAll();
+                updateUI();
+            }
+            hideModals();
+        }
+
+        function updateBlindsDisplay() {
+            let idx = tData.level - 1;
+            let sb;
+            
+            if (idx < tData.blindsSchedule.length) {
+                sb = tData.blindsSchedule[idx];
+            } else {
+                // Si on dépasse le tableau, on double la dernière blind pour chaque niveau supp.
+                let last = tData.blindsSchedule[tData.blindsSchedule.length - 1];
+                let diff = idx - (tData.blindsSchedule.length - 1);
+                sb = last * Math.pow(2, diff);
+            }
+            
+            let bb = sb * 2;
+            
+            document.getElementById('levelDisplay').innerText = "Niveau " + tData.level;
+            document.getElementById('sb').innerText = sb;
+            document.getElementById('bb').innerText = bb;
+        }
+
+        function toggleTimer() {
+            const btn = document.getElementById('btnPlay');
+            if (isRunning) {
+                clearInterval(timerInterval);
+                btn.innerText = "▶ Play";
+                btn.classList.replace('btn-pause', 'btn-play');
+            } else {
+                timerInterval = setInterval(() => {
+                    if (tData.timeRemaining > 0) {
+                        tData.timeRemaining--;
+                        document.getElementById('timeDisplay').innerText = formatTime(tData.timeRemaining);
+                    } else {
+                        // Petit flash écran fin de round (compatible mobile)
+                        document.body.style.backgroundColor = "var(--accent-red)";
+                        setTimeout(() => document.body.style.backgroundColor = "var(--bg-color)", 1000);
+                        
+                        clearInterval(timerInterval);
+                        nextLevel();
+                    }
+                }, 1000);
+                btn.innerText = "⏸ Pause";
+                btn.classList.replace('btn-play', 'btn-pause');
+            }
+            isRunning = !isRunning;
+        }
+
+        function nextLevel() {
+            tData.level++;
+            tData.timeRemaining = tData.duration * 60;
+            updateUI();
+            saveAll();
+        }
+
+        // Système de double-clic (contournement iOS)
+        function confirmReset(btn) {
+            if (btn.innerText === "🔄 Reset") {
+                btn.innerText = "Sûr ?";
+                btn.style.backgroundColor = "var(--accent-red)";
+                setTimeout(() => { 
+                    if(btn.innerText === "Sûr ?") { btn.innerText = "🔄 Reset"; btn.style.backgroundColor = "#333"; } 
+                }, 3000);
+            } else {
+                tData.level = 1;
+                tData.timeRemaining = tData.duration * 60;
+                if (isRunning) toggleTimer();
+                updateUI();
+                saveAll();
+                btn.innerText = "🔄 Reset"; btn.style.backgroundColor = "#333";
+            }
+        }
+
+        function changeRebuys(delta) {
+            if (tData.rebuys + delta >= 0) {
+                tData.rebuys += delta;
+                document.getElementById('rebuys').value = tData.rebuys;
+                updateUI();
+                saveAll();
+            }
+        }
+
+        // --- GESTION DES JOUEURS ---
+        function addPlayer() {
+            const input = document.getElementById('newPlayerName');
+            const name = input.value.trim();
+            if (name) {
+                tData.players.push({
+                    id: Date.now(), name: name, active: true, rank: null
+                });
+                input.value = '';
+                updateUI();
+                saveAll();
+            }
+        }
+
+        function confirmEliminate(btn, id) {
+            if (btn.innerText === "Éliminer") {
+                btn.innerText = "Sûr ?";
+                btn.classList.replace('btn-danger', 'btn-pause');
+                setTimeout(() => { 
+                    if(btn && btn.innerText === "Sûr ?") { btn.innerText = "Éliminer"; btn.classList.replace('btn-pause', 'btn-danger'); } 
+                }, 3000);
+            } else {
+                let activeCount = tData.players.filter(p => p.active).length;
+                let player = tData.players.find(p => p.id === id);
+                if (player && player.active) {
+                    player.active = false;
+                    player.rank = activeCount;
+                    updateUI();
+                    saveAll();
+                }
+            }
+        }
+
+        function reactivatePlayer(id) {
+            let player = tData.players.find(p => p.id === id);
+            if (player) {
+                player.active = true;
+                player.rank = null;
+                updateUI();
+                saveAll();
+            }
+        }
+
+        function confirmDelete(btn, id) {
+            if (btn.innerText === "❌") {
+                btn.innerText = "Suppr?";
+                btn.style.backgroundColor = "var(--accent-red)";
+                setTimeout(() => { 
+                    if(btn && btn.innerText === "Suppr?") { btn.innerText = "❌"; btn.style.backgroundColor = "#555"; } 
+                }, 3000);
+            } else {
+                tData.players = tData.players.filter(p => p.id !== id);
+                let eliminated = tData.players.filter(p => !p.active).sort((a,b) => b.rank - a.rank);
+                let activeCount = tData.players.filter(p => p.active).length;
+                eliminated.forEach((p, index) => { p.rank = activeCount + index + 1; });
+                updateUI();
+                saveAll();
+            }
+        }
+
+        function updateUI() {
+            document.getElementById('timeDisplay').innerText = formatTime(tData.timeRemaining);
+            updateBlindsDisplay();
+
+            let totalEntries = tData.players.length + tData.rebuys;
+            let prizepool = totalEntries * tData.buyin;
+            document.getElementById('prizepoolTotal').innerText = prizepool;
+            document.getElementById('playerCount').innerText = tData.players.length;
+
+            const activeList = document.getElementById('activePlayersList');
+            const leaderboard = document.getElementById('leaderboard');
+            activeList.innerHTML = '';
+            leaderboard.innerHTML = '';
+
+            let activePlayers = tData.players.filter(p => p.active);
+            let eliminatedPlayers = tData.players.filter(p => !p.active).sort((a, b) => a.rank - b.rank);
+            let placesPayees = Math.max(1, Math.ceil(tData.players.length / 4));
+
+            activePlayers.forEach(p => {
+                activeList.innerHTML += `
+                    <div class="player-item">
+                        <span class="player-name">🟢 ${p.name}</span>
+                        <div style="display:flex; gap:5px;">
+                            <button class="btn-small btn-danger" onclick="confirmEliminate(this, ${p.id})">Éliminer</button>
+                            <button class="btn-small" style="background:#555;" onclick="confirmDelete(this, ${p.id})">❌</button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            let displayLeaderboard = [...eliminatedPlayers];
+            if (activePlayers.length === 1 && tData.players.length > 1) {
+                let winner = {...activePlayers[0], rank: 1};
+                displayLeaderboard.unshift(winner);
+            }
+
+            displayLeaderboard.forEach(p => {
+                let points = Math.round((Math.sqrt(tData.players.length) / Math.sqrt(p.rank)) * 10);
+                
+                let gain = 0;
+                if (p.rank <= placesPayees) {
+                    if (placesPayees === 1) gain = prizepool;
+                    else if (placesPayees === 2) gain = p.rank === 1 ? prizepool * 0.65 : prizepool * 0.35;
+                    else if (placesPayees === 3) gain = p.rank === 1 ? prizepool * 0.50 : p.rank === 2 ? prizepool * 0.30 : prizepool * 0.20;
+                    else {
+                        let part = (placesPayees - p.rank + 1) / ((placesPayees * (placesPayees + 1)) / 2);
+                        gain = prizepool * part;
+                    }
+                }
+
+                let isFirst = p.rank === 1;
+                leaderboard.innerHTML += `
+                    <tr>
+                        <td class="${isFirst ? 'gold' : ''}">${p.rank}</td>
+                        <td class="${isFirst ? 'gold' : ''}">
+                            ${p.name} 
+                            ${p.active ? '' : `<button class="btn-small" style="padding:2px 5px; font-size:10px; margin-left:5px;" onclick="reactivatePlayer(${p.id})">↩️</button>`}
+                        </td>
+                        <td>${points}</td>
+                        <td style="color: ${gain > 0 ? 'var(--accent-green)' : 'var(--text-muted)'}">
+                            ${gain > 0 ? Math.round(gain) + ' €' : '-'}
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
