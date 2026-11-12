@@ -9,7 +9,7 @@
     <link rel="apple-touch-icon" href="OIP.webp">
     <link rel="icon" href="OIP.webp" type="image/webp">
     
-    <title>Poker Timer V7</title>
+    <title>Poker Timer V9</title>
     <style>
         :root {
             --bg-color: #121212; --panel-bg: #1e1e1e; --text-main: #ffffff;
@@ -103,6 +103,7 @@
         <img src="OIP.webp" alt="Logo">
         <select id="tournamentSelect" onchange="loadTournament()" style="flex:1;"></select>
         <button class="btn-small" onclick="openRenameModal()">✏️</button>
+        <button class="btn-small btn-danger" onclick="confirmAction(this, deleteCurrentTournament, '🗑️')">🗑️</button>
         <button class="btn-small btn-next" onclick="showModal('modal-new-tourney')">+ Créer</button>
     </header>
 
@@ -140,3 +141,479 @@
         <div class="row">
             <input type="text" id="newPlayerName" placeholder="Nom du joueur...">
             <button class="btn-small btn-next" onclick="addPlayer()">Ajouter</button>
+        </div>
+        <div id="activePlayersList"></div>
+    </div>
+
+    <!-- Tableau des Scores (Ce tournoi) -->
+    <div class="card">
+        <div class="row">
+            <h3 style="margin:0;">Points du Tournoi</h3>
+            <strong style="color: var(--accent-green);">Prizepool: <span id="prizepoolTotal">0</span> €</strong>
+        </div>
+        <table>
+            <thead><tr><th>Pos.</th><th>Joueur</th><th>Pts</th><th>Gain</th></tr></thead>
+            <tbody id="leaderboard"></tbody>
+        </table>
+    </div>
+
+    <!-- CUMUL GÉNÉRAL -->
+    <div class="card" style="border: 2px solid var(--accent-gold);">
+        <h3 style="margin-top:0; color:var(--accent-gold); text-align:center;">🏆 CLASSEMENT GÉNÉRAL CUMULÉ 🏆</h3>
+        <p style="font-size:12px; color:var(--text-muted); text-align:center; margin-top:-5px;">(Tous les tournois enregistrés)</p>
+        <table>
+            <thead><tr><th>Joueur</th><th>Tournois</th><th>Total Pts</th><th>Total Gains</th></tr></thead>
+            <tbody id="globalLeaderboard"></tbody>
+        </table>
+    </div>
+
+    <!-- MODALES -->
+    <div id="modalOverlay" class="modal-overlay" style="display:none;">
+        
+        <!-- Créer Tournoi -->
+        <div id="modal-new-tourney" class="modal-content" style="display:none;">
+            <h3>Créer un nouveau tournoi</h3>
+            <input type="text" id="newTourneyInput" placeholder="Ex: Soirée Poker" style="margin-bottom: 15px;">
+            <div class="controls">
+                <button class="btn-danger" onclick="hideModals()">Annuler</button>
+                <button class="btn-play" onclick="confirmCreateTourney()">Créer</button>
+            </div>
+        </div>
+
+        <!-- Renommer Tournoi -->
+        <div id="modal-rename" class="modal-content" style="display:none;">
+            <h3>Renommer le tournoi</h3>
+            <input type="text" id="renameInput" style="margin-bottom: 15px;">
+            <div class="controls">
+                <button class="btn-danger" onclick="hideModals()">Annuler</button>
+                <button class="btn-play" onclick="confirmRename()">Enregistrer</button>
+            </div>
+        </div>
+
+        <!-- Éditeur de Structure -->
+        <div id="modal-structure" class="modal-content" style="display:none; max-width: 500px;">
+            <h3 style="margin-top:0;">Structure (Blinds & Temps)</h3>
+            <div class="row" style="font-size:12px; color:var(--text-muted); font-weight:bold; margin-bottom:5px;">
+                <span style="width:30px;">Niv</span>
+                <span style="flex:1; text-align:center;">Petite B.</span>
+                <span style="flex:1; text-align:center;">Grosse B.</span>
+                <span style="flex:1; text-align:center;">Min.</span>
+                <span style="width:30px;"></span>
+            </div>
+            <div id="structureList" style="max-height: 50vh; overflow-y:auto; margin-bottom:15px; padding-right:5px;">
+                <!-- Rempli par JS -->
+            </div>
+            <button class="btn-next" style="width:100%; margin-bottom:15px;" onclick="addTempLevel()">+ Ajouter un niveau</button>
+            <div class="controls">
+                <button class="btn-danger" onclick="hideModals()">Annuler</button>
+                <button class="btn-play" onclick="saveStructure()">Valider</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- DONNÉES & STRUCTURE PAR DÉFAUT ---
+        let tournaments = JSON.parse(localStorage.getItem('pokerTournamentsV9')) || {};
+        let currentId = localStorage.getItem('currentTourneyIdV9') || null;
+        
+        const defaultLevels = [
+            {sb: 10, bb: 20, duration: 15}, {sb: 20, bb: 40, duration: 15},
+            {sb: 30, bb: 60, duration: 15}, {sb: 40, bb: 80, duration: 15},
+            {sb: 50, bb: 100, duration: 15}, {sb: 100, bb: 200, duration: 15},
+            {sb: 200, bb: 400, duration: 15}, {sb: 300, bb: 600, duration: 15},
+            {sb: 500, bb: 1000, duration: 15}
+        ];
+
+        let tData = null;
+        let tempLevels = [];
+        let timerInterval = null;
+        let isRunning = false;
+
+        // --- INIT ---
+        function init() {
+            if (Object.keys(tournaments).length === 0) {
+                let id = 't_' + Date.now();
+                tournaments[id] = {
+                    name: "Tournoi Principal", buyin: 20, levelIndex: 0,
+                    timeRemaining: 15 * 60, levels: JSON.parse(JSON.stringify(defaultLevels)), players: []
+                };
+                currentId = id;
+            }
+            if (!currentId || !tournaments[currentId]) currentId = Object.keys(tournaments)[0];
+            
+            updateSelectMenu();
+            loadTournament(currentId);
+        }
+
+        // --- MODALES ---
+        function showModal(id) {
+            document.getElementById('modalOverlay').style.display = 'flex';
+            document.querySelectorAll('.modal-content').forEach(el => el.style.display = 'none');
+            document.getElementById(id).style.display = 'block';
+        }
+        function hideModals() { document.getElementById('modalOverlay').style.display = 'none'; }
+
+        // --- GESTION TOURNOIS ---
+        function confirmCreateTourney() {
+            let name = document.getElementById('newTourneyInput').value.trim() || "Nouveau Tournoi";
+            let id = 't_' + Date.now();
+            
+            tournaments[id] = {
+                name: name, buyin: 20, levelIndex: 0,
+                timeRemaining: 15 * 60, levels: JSON.parse(JSON.stringify(defaultLevels)), players: []
+            };
+            
+            currentId = id;
+            tData = tournaments[id];
+            
+            hideModals();
+            document.getElementById('newTourneyInput').value = '';
+            
+            updateSelectMenu();
+            loadTournament(id);
+        }
+
+        function openRenameModal() {
+            document.getElementById('renameInput').value = tData.name;
+            showModal('modal-rename');
+        }
+        
+        function confirmRename() {
+            let val = document.getElementById('renameInput').value.trim();
+            if(val) { tData.name = val; saveAll(); updateSelectMenu(); }
+            hideModals();
+        }
+
+        function deleteCurrentTournament() {
+            if (isRunning) toggleTimer(); // Met en pause le chrono si on supprime en cours de jeu
+            
+            delete tournaments[currentId]; // Supprime de la liste des tournois
+            
+            let remainingIds = Object.keys(tournaments);
+            if (remainingIds.length === 0) {
+                // Si on a tout supprimé, on recrée un tournoi par défaut
+                let id = 't_' + Date.now();
+                tournaments[id] = {
+                    name: "Tournoi Principal", buyin: 20, levelIndex: 0,
+                    timeRemaining: 15 * 60, levels: JSON.parse(JSON.stringify(defaultLevels)), players: []
+                };
+                currentId = id;
+            } else {
+                // Sinon on sélectionne le premier de la liste restante
+                currentId = remainingIds[0];
+            }
+            
+            tData = tournaments[currentId];
+            saveAll();
+            updateSelectMenu();
+            loadTournament(currentId);
+        }
+
+        function updateSelectMenu() {
+            const select = document.getElementById('tournamentSelect');
+            select.innerHTML = '';
+            for (let id in tournaments) {
+                let opt = document.createElement('option');
+                opt.value = id; opt.textContent = tournaments[id].name;
+                if (id === currentId) opt.selected = true;
+                select.appendChild(opt);
+            }
+        }
+
+        function loadTournament(id = null) {
+            if (!id) id = document.getElementById('tournamentSelect').value;
+            currentId = id;
+            tData = tournaments[id];
+            
+            document.getElementById('buyin').value = tData.buyin;
+            if (isRunning) toggleTimer(); 
+            
+            updateUI(); 
+            saveAll();
+        }
+
+        function saveSettings() {
+            tData.buyin = parseInt(document.getElementById('buyin').value) || 0;
+            saveAll(); updateUI();
+        }
+
+        function saveAll() {
+            tournaments[currentId] = tData;
+            localStorage.setItem('pokerTournamentsV9', JSON.stringify(tournaments));
+            localStorage.setItem('currentTourneyIdV9', currentId);
+        }
+
+        // --- STRUCTURE (BLINDS ET TEMPS) ---
+        function openStructureModal() {
+            tempLevels = JSON.parse(JSON.stringify(tData.levels));
+            renderStructureModal();
+            showModal('modal-structure');
+        }
+
+        function renderStructureModal() {
+            const container = document.getElementById('structureList');
+            container.innerHTML = '';
+            tempLevels.forEach((lvl, i) => {
+                container.innerHTML += `
+                    <div class="row" style="background:#222; padding:5px; border-radius:5px; gap:5px;">
+                        <span style="width:25px; font-size:12px; color:var(--accent-red);">${i+1}</span>
+                        <input type="number" class="input-short" value="${lvl.sb}" onchange="tempLevels[${i}].sb=parseInt(this.value)">
+                        <input type="number" class="input-short" value="${lvl.bb}" onchange="tempLevels[${i}].bb=parseInt(this.value)">
+                        <input type="number" class="input-short" value="${lvl.duration}" onchange="tempLevels[${i}].duration=parseInt(this.value)">
+                        <button class="btn-danger btn-small" style="padding:8px;" onclick="removeTempLevel(${i})">X</button>
+                    </div>
+                `;
+            });
+        }
+
+        function addTempLevel() {
+            let last = tempLevels[tempLevels.length - 1] || {sb:10, bb:20, duration:15};
+            tempLevels.push({sb: last.sb*2, bb: last.bb*2, duration: last.duration});
+            renderStructureModal();
+        }
+
+        function removeTempLevel(idx) {
+            if(tempLevels.length > 1) { tempLevels.splice(idx, 1); renderStructureModal(); }
+        }
+
+        function saveStructure() {
+            tData.levels = tempLevels;
+            if(tData.levelIndex >= tData.levels.length) tData.levelIndex = tData.levels.length - 1;
+            hideModals(); updateUI(); saveAll();
+        }
+
+        // --- TIMER ---
+        function formatTime(sec) {
+            const m = Math.floor(sec / 60).toString().padStart(2, '0');
+            const s = (sec % 60).toString().padStart(2, '0');
+            return `${m}:${s}`;
+        }
+
+        function toggleTimer() {
+            const btn = document.getElementById('btnPlay');
+            if (isRunning) {
+                clearInterval(timerInterval);
+                btn.innerText = "▶ Play"; btn.classList.replace('btn-pause', 'btn-play');
+            } else {
+                timerInterval = setInterval(() => {
+                    if (tData.timeRemaining > 0) {
+                        tData.timeRemaining--;
+                        document.getElementById('timeDisplay').innerText = formatTime(tData.timeRemaining);
+                    } else {
+                        document.body.style.backgroundColor = "var(--accent-red)";
+                        setTimeout(() => document.body.style.backgroundColor = "var(--bg-color)", 1000);
+                        clearInterval(timerInterval);
+                        nextLevel();
+                    }
+                }, 1000);
+                btn.innerText = "⏸ Pause"; btn.classList.replace('btn-play', 'btn-pause');
+            }
+            isRunning = !isRunning;
+        }
+
+        function nextLevel() {
+            if(tData.levelIndex < tData.levels.length - 1) {
+                tData.levelIndex++;
+            }
+            tData.timeRemaining = tData.levels[tData.levelIndex].duration * 60;
+            if(isRunning) toggleTimer();
+            updateUI(); saveAll();
+        }
+
+        function resetTimer() {
+            tData.levelIndex = 0;
+            tData.timeRemaining = tData.levels[0].duration * 60;
+            if (isRunning) toggleTimer();
+            updateUI(); saveAll();
+        }
+
+        // Sécurité Double-Tap
+        function confirmAction(btn, actionFunc, defaultText, idParam=null) {
+            if (btn.innerText === defaultText || btn.innerText === "Out" || btn.innerText === "❌" || btn.innerText === "🗑️") {
+                btn.dataset.original = btn.innerText;
+                btn.dataset.color = btn.style.backgroundColor;
+                btn.innerText = "Sûr ?";
+                btn.style.backgroundColor = "var(--accent-orange)";
+                setTimeout(() => { 
+                    if(btn.innerText === "Sûr ?") { btn.innerText = btn.dataset.original; btn.style.backgroundColor = btn.dataset.color; } 
+                }, 3000);
+            } else {
+                actionFunc(idParam);
+                btn.innerText = btn.dataset.original; btn.style.backgroundColor = btn.dataset.color;
+            }
+        }
+
+        // --- JOUEURS ET RECAVES ---
+        function addPlayer() {
+            const input = document.getElementById('newPlayerName');
+            const name = input.value.trim();
+            if (name) {
+                let cleanName = name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+                tData.players.push({ id: Date.now(), name: cleanName, active: true, rank: null, rebuys: 0 });
+                input.value = ''; updateUI(); saveAll();
+            }
+        }
+
+        function addPlayerRebuy(id) {
+            let player = tData.players.find(p => p.id === id);
+            if (player) {
+                player.rebuys = (player.rebuys || 0) + 1;
+                updateUI(); saveAll();
+            }
+        }
+
+        function doEliminate(id) {
+            let activeCount = tData.players.filter(p => p.active).length;
+            let player = tData.players.find(p => p.id === id);
+            if (player && player.active) { player.active = false; player.rank = activeCount; updateUI(); saveAll(); }
+        }
+
+        function reactivatePlayer(id) {
+            let player = tData.players.find(p => p.id === id);
+            if (player) { player.active = true; player.rank = null; updateUI(); saveAll(); }
+        }
+
+        function doDelete(id) {
+            tData.players = tData.players.filter(p => p.id !== id);
+            let eliminated = tData.players.filter(p => !p.active).sort((a,b) => b.rank - a.rank);
+            let activeCount = tData.players.filter(p => p.active).length;
+            eliminated.forEach((p, index) => { p.rank = activeCount + index + 1; });
+            updateUI(); saveAll();
+        }
+
+        // --- CALCULS ET UI ---
+        function getTournamentResults(tourney) {
+            let results = [];
+            let totalRebuys = tourney.players.reduce((sum, p) => sum + (p.rebuys || 0), 0);
+            let totalEntries = tourney.players.length + totalRebuys;
+            let prizepool = totalEntries * tourney.buyin;
+            let placesPayees = Math.max(1, Math.ceil(tourney.players.length / 4));
+            
+            let activePlayers = tourney.players.filter(p => p.active);
+            let eliminatedPlayers = tourney.players.filter(p => !p.active).sort((a, b) => a.rank - b.rank);
+            
+            let displayLeaderboard = [...eliminatedPlayers];
+            if (activePlayers.length === 1 && tourney.players.length > 1) {
+                displayLeaderboard.unshift({...activePlayers[0], rank: 1});
+            }
+
+            displayLeaderboard.forEach(p => {
+                let points = Math.round((Math.sqrt(tourney.players.length) / Math.sqrt(p.rank)) * 10);
+                let gain = 0;
+                if (p.rank <= placesPayees) {
+                    if (placesPayees === 1) gain = prizepool;
+                    else if (placesPayees === 2) gain = p.rank === 1 ? prizepool * 0.65 : prizepool * 0.35;
+                    else if (placesPayees === 3) gain = p.rank === 1 ? prizepool * 0.50 : p.rank === 2 ? prizepool * 0.30 : prizepool * 0.20;
+                    else {
+                        let part = (placesPayees - p.rank + 1) / ((placesPayees * (placesPayees + 1)) / 2);
+                        gain = prizepool * part;
+                    }
+                }
+                results.push({ name: p.name, rank: p.rank, points: points, gain: gain });
+            });
+            return { totalRebuys, prizepool, results, activePlayers, displayLeaderboard };
+        }
+
+        function updateUI() {
+            let currentLvl = tData.levels[tData.levelIndex];
+            document.getElementById('levelDisplay').innerText = "Niveau " + (tData.levelIndex + 1);
+            document.getElementById('sb').innerText = currentLvl.sb;
+            document.getElementById('bb').innerText = currentLvl.bb;
+            document.getElementById('timeDisplay').innerText = formatTime(tData.timeRemaining);
+
+            let tRes = getTournamentResults(tData);
+            document.getElementById('rebuysTotal').value = tRes.totalRebuys;
+            document.getElementById('prizepoolTotal').innerText = tRes.prizepool;
+            document.getElementById('playerCount').innerText = tData.players.length;
+
+            const activeList = document.getElementById('activePlayersList');
+            const leaderboard = document.getElementById('leaderboard');
+            activeList.innerHTML = ''; leaderboard.innerHTML = '';
+
+            tRes.activePlayers.forEach(p => {
+                let rebuyText = p.rebuys > 0 ? ` <span style="font-size:12px; color:var(--accent-orange);">(${p.rebuys} recave${p.rebuys>1?'s':''})</span>` : '';
+                activeList.innerHTML += `
+                    <div class="player-item">
+                        <span style="font-weight:bold;">🟢 ${p.name}${rebuyText}</span>
+                        <div style="display:flex; gap:5px; margin-top:5px;">
+                            <button class="btn-small btn-next" onclick="confirmAction(this, addPlayerRebuy, '+ Recave', ${p.id})">+ Recave</button>
+                            <button class="btn-small btn-danger" onclick="confirmAction(this, doEliminate, 'Out', ${p.id})">Out</button>
+                            <button class="btn-small" style="background:#555;" onclick="confirmAction(this, doDelete, '❌', ${p.id})">❌</button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            tRes.results.forEach(res => {
+                let isFirst = res.rank === 1;
+                let playerObj = tData.players.find(p => p.name === res.name);
+                leaderboard.innerHTML += `
+                    <tr>
+                        <td class="${isFirst ? 'gold' : ''}">${res.rank}</td>
+                        <td class="${isFirst ? 'gold' : ''}">
+                            ${res.name} 
+                            ${playerObj.active ? '' : `<button class="btn-small" style="padding:2px 5px; font-size:10px; margin-left:5px;" onclick="reactivatePlayer(${playerObj.id})">↩️</button>`}
+                        </td>
+                        <td>${res.points}</td>
+                        <td style="color: ${res.gain > 0 ? 'var(--accent-green)' : 'var(--text-muted)'}">
+                            ${res.gain > 0 ? Math.round(res.gain) + ' €' : '-'}
+                        </td>
+                    </tr>
+                `;
+            });
+
+            updateGlobalLeaderboard();
+        }
+
+        // --- CUMUL GÉNÉRAL ---
+        function updateGlobalLeaderboard() {
+            let globalStats = {};
+            
+            for(let id in tournaments) {
+                let tourney = tournaments[id];
+                if(tourney.players.length === 0) continue;
+                
+                let tRes = getTournamentResults(tourney);
+                
+                tRes.results.forEach(res => {
+                    if(!globalStats[res.name]) {
+                        globalStats[res.name] = { points: 0, gain: 0, tournoisJoues: 0 };
+                    }
+                    globalStats[res.name].points += res.points;
+                    globalStats[res.name].gain += res.gain;
+                    globalStats[res.name].tournoisJoues += 1;
+                });
+            }
+
+            let globalArray = Object.keys(globalStats).map(name => {
+                return { name: name, ...globalStats[name] };
+            });
+            globalArray.sort((a, b) => b.points - a.points);
+
+            const gLeaderboard = document.getElementById('globalLeaderboard');
+            gLeaderboard.innerHTML = '';
+            
+            if(globalArray.length === 0) {
+                gLeaderboard.innerHTML = '<tr><td colspan="4" style="color:#777;">Aucune donnée</td></tr>';
+                return;
+            }
+
+            globalArray.forEach((p, index) => {
+                let badge = index === 0 ? '🥇 ' : index === 1 ? '🥈 ' : index === 2 ? '🥉 ' : '';
+                let color = index === 0 ? 'var(--accent-gold)' : 'white';
+                gLeaderboard.innerHTML += `
+                    <tr style="color:${color}; font-weight:${index===0?'bold':'normal'};">
+                        <td>${badge}${p.name}</td>
+                        <td>${p.tournoisJoues}</td>
+                        <td>${p.points}</td>
+                        <td style="color:var(--accent-green)">${Math.round(p.gain)} €</td>
+                    </tr>
+                `;
+            });
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
