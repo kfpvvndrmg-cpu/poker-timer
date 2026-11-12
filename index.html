@@ -9,7 +9,7 @@
     <link rel="apple-touch-icon" href="OIP.webp">
     <link rel="icon" href="OIP.webp" type="image/webp">
     
-    <title>Poker Timer V5</title>
+    <title>Poker Timer V6</title>
     <style>
         :root {
             --bg-color: #121212; --panel-bg: #1e1e1e; --text-main: #ffffff;
@@ -217,8 +217,9 @@
 
     <script>
         // --- DONNÉES & STRUCTURE PAR DÉFAUT ---
-        let tournaments = JSON.parse(localStorage.getItem('pokerTournamentsV5')) || {};
-        let currentId = localStorage.getItem('currentTourneyIdV5') || null;
+        // On utilise une nouvelle clé (V6) pour repartir sur une base vierge et saine.
+        let tournaments = JSON.parse(localStorage.getItem('pokerTournamentsV6')) || {};
+        let currentId = localStorage.getItem('currentTourneyIdV6') || null;
         
         const defaultLevels = [
             {sb: 10, bb: 20, duration: 15}, {sb: 20, bb: 40, duration: 15},
@@ -228,11 +229,7 @@
             {sb: 500, bb: 1000, duration: 15}
         ];
 
-        let tData = {
-            name: "Nouveau Tournoi", buyin: 20, rebuys: 0, levelIndex: 0,
-            timeRemaining: 15 * 60, levels: JSON.parse(JSON.stringify(defaultLevels)), players: [] 
-        };
-
+        let tData = null; // Sera initialisé dans loadTournament
         let tempLevels = [];
         let timerInterval = null;
         let isRunning = false;
@@ -241,14 +238,16 @@
         function init() {
             if (Object.keys(tournaments).length === 0) {
                 let id = 't_' + Date.now();
-                tournaments[id] = JSON.parse(JSON.stringify(tData));
-                tournaments[id].name = "Tournoi Principal";
+                tournaments[id] = {
+                    name: "Tournoi Principal", buyin: 20, rebuys: 0, levelIndex: 0,
+                    timeRemaining: 15 * 60, levels: JSON.parse(JSON.stringify(defaultLevels)), players: []
+                };
                 currentId = id;
-                saveAll();
             }
             if (!currentId || !tournaments[currentId]) currentId = Object.keys(tournaments)[0];
-            loadTournament(currentId);
+            
             updateSelectMenu();
+            loadTournament(currentId);
         }
 
         // --- MODALES ---
@@ -263,13 +262,20 @@
         function confirmCreateTourney() {
             let name = document.getElementById('newTourneyInput').value.trim() || "Nouveau Tournoi";
             let id = 't_' + Date.now();
+            
+            // CORRECTION DU BUG : Création d'un objet strictement indépendant
             tournaments[id] = {
                 name: name, buyin: 20, rebuys: 0, levelIndex: 0,
                 timeRemaining: 15 * 60, levels: JSON.parse(JSON.stringify(defaultLevels)), players: []
             };
-            currentId = id;
-            saveAll(); updateSelectMenu(); loadTournament(id); hideModals();
+            
+            hideModals();
             document.getElementById('newTourneyInput').value = '';
+            
+            // On charge ce nouveau tournoi (ce qui mettra à jour tData et sauvegardera)
+            updateSelectMenu();
+            document.getElementById('tournamentSelect').value = id;
+            loadTournament(id);
         }
 
         function openRenameModal() {
@@ -297,17 +303,17 @@
         function loadTournament(id = null) {
             if (!id) id = document.getElementById('tournamentSelect').value;
             currentId = id;
+            
+            // On pointe tData vers le bon tournoi
             tData = tournaments[id];
             
-            // Rétrocompatibilité si ancienne sauvegarde
-            if(!tData.levels) tData.levels = JSON.parse(JSON.stringify(defaultLevels));
-            if(tData.levelIndex === undefined) tData.levelIndex = 0;
-
             document.getElementById('buyin').value = tData.buyin;
             document.getElementById('rebuys').value = tData.rebuys;
             
-            if (isRunning) toggleTimer(); 
-            updateUI(); saveAll();
+            if (isRunning) toggleTimer(); // Met en pause si on change de tournoi
+            
+            updateUI(); 
+            saveAll();
         }
 
         function saveSettings() {
@@ -317,8 +323,8 @@
 
         function saveAll() {
             tournaments[currentId] = tData;
-            localStorage.setItem('pokerTournamentsV5', JSON.stringify(tournaments));
-            localStorage.setItem('currentTourneyIdV5', currentId);
+            localStorage.setItem('pokerTournamentsV6', JSON.stringify(tournaments));
+            localStorage.setItem('currentTourneyIdV6', currentId);
         }
 
         // --- STRUCTURE (BLINDS ET TEMPS) ---
@@ -333,266 +339,4 @@
             container.innerHTML = '';
             tempLevels.forEach((lvl, i) => {
                 container.innerHTML += `
-                    <div class="row" style="background:#222; padding:5px; border-radius:5px; gap:5px;">
-                        <span style="width:25px; font-size:12px; color:var(--accent-red);">${i+1}</span>
-                        <input type="number" class="input-short" value="${lvl.sb}" onchange="tempLevels[${i}].sb=parseInt(this.value)">
-                        <input type="number" class="input-short" value="${lvl.bb}" onchange="tempLevels[${i}].bb=parseInt(this.value)">
-                        <input type="number" class="input-short" value="${lvl.duration}" onchange="tempLevels[${i}].duration=parseInt(this.value)">
-                        <button class="btn-danger btn-small" style="padding:8px;" onclick="removeTempLevel(${i})">X</button>
-                    </div>
-                `;
-            });
-        }
-
-        function addTempLevel() {
-            let last = tempLevels[tempLevels.length - 1] || {sb:10, bb:20, duration:15};
-            tempLevels.push({sb: last.sb*2, bb: last.bb*2, duration: last.duration});
-            renderStructureModal();
-        }
-
-        function removeTempLevel(idx) {
-            if(tempLevels.length > 1) { tempLevels.splice(idx, 1); renderStructureModal(); }
-        }
-
-        function saveStructure() {
-            tData.levels = tempLevels;
-            // Sécurité si le niveau actuel a été supprimé
-            if(tData.levelIndex >= tData.levels.length) tData.levelIndex = tData.levels.length - 1;
-            hideModals(); updateUI(); saveAll();
-        }
-
-        // --- TIMER ---
-        function formatTime(sec) {
-            const m = Math.floor(sec / 60).toString().padStart(2, '0');
-            const s = (sec % 60).toString().padStart(2, '0');
-            return `${m}:${s}`;
-        }
-
-        function toggleTimer() {
-            const btn = document.getElementById('btnPlay');
-            if (isRunning) {
-                clearInterval(timerInterval);
-                btn.innerText = "▶ Play"; btn.classList.replace('btn-pause', 'btn-play');
-            } else {
-                timerInterval = setInterval(() => {
-                    if (tData.timeRemaining > 0) {
-                        tData.timeRemaining--;
-                        document.getElementById('timeDisplay').innerText = formatTime(tData.timeRemaining);
-                    } else {
-                        document.body.style.backgroundColor = "var(--accent-red)";
-                        setTimeout(() => document.body.style.backgroundColor = "var(--bg-color)", 1000);
-                        clearInterval(timerInterval);
-                        nextLevel();
-                    }
-                }, 1000);
-                btn.innerText = "⏸ Pause"; btn.classList.replace('btn-play', 'btn-pause');
-            }
-            isRunning = !isRunning;
-        }
-
-        function nextLevel() {
-            if(tData.levelIndex < tData.levels.length - 1) {
-                tData.levelIndex++;
-            }
-            tData.timeRemaining = tData.levels[tData.levelIndex].duration * 60;
-            if(isRunning) toggleTimer(); // Met en pause au changement
-            updateUI(); saveAll();
-        }
-
-        function resetTimer() {
-            tData.levelIndex = 0;
-            tData.timeRemaining = tData.levels[0].duration * 60;
-            if (isRunning) toggleTimer();
-            updateUI(); saveAll();
-        }
-
-        // Double-tap sécurité
-        function confirmAction(btn, actionFunc, defaultText, idParam=null) {
-            if (btn.innerText === defaultText || btn.innerText === "Éliminer" || btn.innerText === "❌") {
-                btn.dataset.original = btn.innerText;
-                btn.dataset.color = btn.style.backgroundColor;
-                btn.innerText = "Sûr ?";
-                btn.style.backgroundColor = "var(--accent-orange)";
-                setTimeout(() => { 
-                    if(btn.innerText === "Sûr ?") { btn.innerText = btn.dataset.original; btn.style.backgroundColor = btn.dataset.color; } 
-                }, 3000);
-            } else {
-                actionFunc(idParam);
-                btn.innerText = btn.dataset.original; btn.style.backgroundColor = btn.dataset.color;
-            }
-        }
-
-        function changeRebuys(delta) {
-            if (tData.rebuys + delta >= 0) {
-                tData.rebuys += delta;
-                document.getElementById('rebuys').value = tData.rebuys;
-                updateUI(); saveAll();
-            }
-        }
-
-        // --- JOUEURS ---
-        function addPlayer() {
-            const input = document.getElementById('newPlayerName');
-            const name = input.value.trim();
-            if (name) {
-                // Capitaliser la première lettre pour que le cumul soit propre
-                let cleanName = name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
-                tData.players.push({ id: Date.now(), name: cleanName, active: true, rank: null });
-                input.value = ''; updateUI(); saveAll();
-            }
-        }
-
-        function doEliminate(id) {
-            let activeCount = tData.players.filter(p => p.active).length;
-            let player = tData.players.find(p => p.id === id);
-            if (player && player.active) { player.active = false; player.rank = activeCount; updateUI(); saveAll(); }
-        }
-
-        function reactivatePlayer(id) {
-            let player = tData.players.find(p => p.id === id);
-            if (player) { player.active = true; player.rank = null; updateUI(); saveAll(); }
-        }
-
-        function doDelete(id) {
-            tData.players = tData.players.filter(p => p.id !== id);
-            let eliminated = tData.players.filter(p => !p.active).sort((a,b) => b.rank - a.rank);
-            let activeCount = tData.players.filter(p => p.active).length;
-            eliminated.forEach((p, index) => { p.rank = activeCount + index + 1; });
-            updateUI(); saveAll();
-        }
-
-        // --- CALCULS ET UI ---
-        function getTournamentResults(tourney) {
-            let results = [];
-            let totalEntries = tourney.players.length + tourney.rebuys;
-            let prizepool = totalEntries * tourney.buyin;
-            let placesPayees = Math.max(1, Math.ceil(tourney.players.length / 4));
-            
-            let activePlayers = tourney.players.filter(p => p.active);
-            let eliminatedPlayers = tourney.players.filter(p => !p.active).sort((a, b) => a.rank - b.rank);
-            
-            let displayLeaderboard = [...eliminatedPlayers];
-            if (activePlayers.length === 1 && tourney.players.length > 1) {
-                displayLeaderboard.unshift({...activePlayers[0], rank: 1});
-            }
-
-            displayLeaderboard.forEach(p => {
-                let points = Math.round((Math.sqrt(tourney.players.length) / Math.sqrt(p.rank)) * 10);
-                let gain = 0;
-                if (p.rank <= placesPayees) {
-                    if (placesPayees === 1) gain = prizepool;
-                    else if (placesPayees === 2) gain = p.rank === 1 ? prizepool * 0.65 : prizepool * 0.35;
-                    else if (placesPayees === 3) gain = p.rank === 1 ? prizepool * 0.50 : p.rank === 2 ? prizepool * 0.30 : prizepool * 0.20;
-                    else {
-                        let part = (placesPayees - p.rank + 1) / ((placesPayees * (placesPayees + 1)) / 2);
-                        gain = prizepool * part;
-                    }
-                }
-                results.push({ name: p.name, rank: p.rank, points: points, gain: gain });
-            });
-            return { prizepool, results, activePlayers, displayLeaderboard };
-        }
-
-        function updateUI() {
-            // Affichage Blinds
-            let currentLvl = tData.levels[tData.levelIndex];
-            document.getElementById('levelDisplay').innerText = "Niveau " + (tData.levelIndex + 1);
-            document.getElementById('sb').innerText = currentLvl.sb;
-            document.getElementById('bb').innerText = currentLvl.bb;
-            document.getElementById('timeDisplay').innerText = formatTime(tData.timeRemaining);
-
-            let tRes = getTournamentResults(tData);
-            document.getElementById('prizepoolTotal').innerText = tRes.prizepool;
-            document.getElementById('playerCount').innerText = tData.players.length;
-
-            const activeList = document.getElementById('activePlayersList');
-            const leaderboard = document.getElementById('leaderboard');
-            activeList.innerHTML = ''; leaderboard.innerHTML = '';
-
-            tRes.activePlayers.forEach(p => {
-                activeList.innerHTML += `
-                    <div class="player-item">
-                        <span style="font-weight:bold;">🟢 ${p.name}</span>
-                        <div style="display:flex; gap:5px;">
-                            <button class="btn-small btn-danger" onclick="confirmAction(this, doEliminate, 'Éliminer', ${p.id})">Éliminer</button>
-                            <button class="btn-small" style="background:#555;" onclick="confirmAction(this, doDelete, '❌', ${p.id})">❌</button>
-                        </div>
-                    </div>
-                `;
-            });
-
-            tRes.results.forEach(res => {
-                let isFirst = res.rank === 1;
-                let playerObj = tData.players.find(p => p.name === res.name);
-                leaderboard.innerHTML += `
-                    <tr>
-                        <td class="${isFirst ? 'gold' : ''}">${res.rank}</td>
-                        <td class="${isFirst ? 'gold' : ''}">
-                            ${res.name} 
-                            ${playerObj.active ? '' : `<button class="btn-small" style="padding:2px 5px; font-size:10px; margin-left:5px;" onclick="reactivatePlayer(${playerObj.id})">↩️</button>`}
-                        </td>
-                        <td>${res.points}</td>
-                        <td style="color: ${res.gain > 0 ? 'var(--accent-green)' : 'var(--text-muted)'}">
-                            ${res.gain > 0 ? Math.round(res.gain) + ' €' : '-'}
-                        </td>
-                    </tr>
-                `;
-            });
-
-            updateGlobalLeaderboard();
-        }
-
-        // --- CUMUL GÉNÉRAL ---
-        function updateGlobalLeaderboard() {
-            let globalStats = {};
-            
-            // Analyser tous les tournois enregistrés
-            for(let id in tournaments) {
-                let tourney = tournaments[id];
-                if(tourney.players.length === 0) continue;
-                
-                let tRes = getTournamentResults(tourney);
-                
-                // Assigner les scores
-                tRes.results.forEach(res => {
-                    if(!globalStats[res.name]) {
-                        globalStats[res.name] = { points: 0, gain: 0, tournoisJoues: 0 };
-                    }
-                    globalStats[res.name].points += res.points;
-                    globalStats[res.name].gain += res.gain;
-                    globalStats[res.name].tournoisJoues += 1;
-                });
-            }
-
-            // Convertir en tableau et trier par points
-            let globalArray = Object.keys(globalStats).map(name => {
-                return { name: name, ...globalStats[name] };
-            });
-            globalArray.sort((a, b) => b.points - a.points);
-
-            const gLeaderboard = document.getElementById('globalLeaderboard');
-            gLeaderboard.innerHTML = '';
-            
-            if(globalArray.length === 0) {
-                gLeaderboard.innerHTML = '<tr><td colspan="4" style="color:#777;">Aucune donnée</td></tr>';
-                return;
-            }
-
-            globalArray.forEach((p, index) => {
-                let badge = index === 0 ? '🥇 ' : index === 1 ? '🥈 ' : index === 2 ? '🥉 ' : '';
-                let color = index === 0 ? 'var(--accent-gold)' : 'white';
-                gLeaderboard.innerHTML += `
-                    <tr style="color:${color}; font-weight:${index===0?'bold':'normal'};">
-                        <td>${badge}${p.name}</td>
-                        <td>${p.tournoisJoues}</td>
-                        <td>${p.points}</td>
-                        <td style="color:var(--accent-green)">${Math.round(p.gain)} €</td>
-                    </tr>
-                `;
-            });
-        }
-
-        window.onload = init;
-    </script>
-</body>
-</html>
+                    <div class="row" style="background:#222; padding:5px; border-radius:5px;
