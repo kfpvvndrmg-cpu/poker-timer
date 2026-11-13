@@ -357,6 +357,8 @@
 
         function PlayersView({ players, setPlayers }) {
             const [newPlayer, setNewPlayer] = useState('');
+            const [editingId, setEditingId] = useState(null);
+            const [editName, setEditName] = useState('');
 
             const handleAdd = (e) => {
                 e.preventDefault();
@@ -370,6 +372,18 @@
                 setPlayers(players.filter(p => p.id !== id));
             };
 
+            const startEdit = (player) => {
+                setEditingId(player.id);
+                setEditName(player.name);
+            };
+
+            const saveEdit = (id) => {
+                if (editName.trim()) {
+                    setPlayers(players.map(p => p.id === id ? { ...p, name: editName.trim() } : p));
+                    setEditingId(null);
+                }
+            };
+
             return (
                 <div className="p-4 h-full flex flex-col">
                     <h2 className="text-2xl font-bold mb-6 drop-shadow-md">Joueurs</h2>
@@ -380,11 +394,24 @@
                     <div className="flex-1 overflow-y-auto space-y-3 pb-4">
                         {players.map(player => (
                             <div key={player.id} className="flex justify-between items-center bg-black/30 backdrop-blur-md p-4 rounded-xl border border-white/10 shadow-sm hover:border-blue-500/50 transition-colors">
-                                <div className="flex items-center space-x-4">
-                                    <div className="w-10 h-10 bg-blue-900/60 border border-blue-500/40 rounded-full flex items-center justify-center font-bold text-blue-300 shadow-inner">{player.name.substring(0, 2).toUpperCase()}</div>
-                                    <span className="font-semibold text-lg text-white">{player.name}</span>
-                                </div>
-                                <button onClick={() => handleRemove(player.id)} className="text-red-400/90 hover:text-red-400 p-2 bg-red-900/30 rounded-full transition-colors border border-red-500/20"><Icon name="Trash2" size={20} /></button>
+                                {editingId === player.id ? (
+                                    <div className="flex w-full items-center space-x-2">
+                                        <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="flex-1 bg-black/50 border border-blue-500 rounded-lg px-3 py-2 text-white outline-none focus:ring-1 focus:ring-blue-500 shadow-inner" autoFocus />
+                                        <button onClick={() => saveEdit(player.id)} className="text-green-400 font-bold px-3 py-2 bg-green-900/30 rounded-lg border border-green-500/30 hover:bg-green-800/50 transition-colors">OK</button>
+                                        <button onClick={() => setEditingId(null)} className="text-gray-400 px-3 py-2 bg-gray-800/50 rounded-lg border border-gray-600/50 hover:bg-gray-700/50 transition-colors"><Icon name="X" size={20} /></button>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div className="flex items-center space-x-4">
+                                            <div className="w-10 h-10 bg-blue-900/60 border border-blue-500/40 rounded-full flex items-center justify-center font-bold text-blue-300 shadow-inner">{player.name.substring(0, 2).toUpperCase()}</div>
+                                            <span className="font-semibold text-lg text-white">{player.name}</span>
+                                        </div>
+                                        <div className="flex space-x-2">
+                                            <button onClick={() => startEdit(player)} className="text-blue-400/90 hover:text-blue-400 p-2 bg-blue-900/30 rounded-full transition-colors border border-blue-500/20"><Icon name="Edit2" size={20} /></button>
+                                            <button onClick={() => handleRemove(player.id)} className="text-red-400/90 hover:text-red-400 p-2 bg-red-900/30 rounded-full transition-colors border border-red-500/20"><Icon name="Trash2" size={20} /></button>
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         ))}
                     </div>
