@@ -3,743 +3,661 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Poker">
-    <link rel="apple-touch-icon" href="OIP.webp">
-    <link rel="icon" href="OIP.webp" type="image/webp">
+    <title>Poker Tournament App</title>
     
-    <title>Poker Timer V12</title>
+    <!-- Tailwind CSS pour le style -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel pour compiler le JSX directement dans le navigateur -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
     <style>
-        :root {
-            --bg-color: #121212; --panel-bg: #1e1e1e; --text-main: #ffffff;
-            --text-muted: #aaaaaa; --accent-red: #d32f2f; --accent-green: #2e7d32;
-            --accent-blue: #1976d2; --accent-orange: #ff9800; --accent-gold: #ffd700;
-            --border-color: #333;
+        body { 
+            background-color: #0f172a; 
+            /* Image de fond attachée au body */
+            background-image: url('aa1f583f57996f4e339f6f1ce4e91710.jpg');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            color: #f8fafc; 
+            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; 
+            margin: 0;
+            padding: 0;
         }
-
-        body {
-            background-color: var(--bg-color); color: var(--text-main);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: center;
-            padding-bottom: 50px;
-        }
-
-        header {
-            display: flex; align-items: center; gap: 8px; margin-bottom: 15px; width: 100%; max-width: 600px;
-        }
-
-        header img { width: 45px; height: 45px; border-radius: 10px; object-fit: cover; }
-
-        .card {
-            background-color: var(--panel-bg); border-radius: 12px; padding: 15px;
-            margin-bottom: 15px; width: 100%; max-width: 600px; box-sizing: border-box;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-        }
-
-        /* Timer & Blinds */
-        .timer-display {
-            font-size: 65px; font-weight: bold; text-align: center; margin: 0; color: var(--accent-green);
-        }
-        .blinds-display {
-            text-align: center; font-size: 26px; color: var(--accent-red); font-weight: bold;
-            display: flex; flex-direction: column; align-items: center;
-        }
-        .level-badge {
-            font-size: 14px; background: #333; padding: 4px 10px; border-radius: 20px; color: white; margin-bottom: 5px;
-        }
-
-        .controls { display: flex; gap: 8px; margin-top: 10px; }
-        
-        button {
-            background-color: #333; color: white; border: none; padding: 10px 5px; border-radius: 8px;
-            font-size: 13px; cursor: pointer; font-weight: bold; flex: 1; transition: 0.2s;
-        }
-        .btn-play { background-color: var(--accent-green); }
-        .btn-pause { background-color: var(--accent-orange); }
-        .btn-next { background-color: var(--accent-blue); }
-        .btn-prev { background-color: #555; }
-        .btn-danger { background-color: var(--accent-red); }
-        .btn-small { padding: 8px 8px; font-size: 12px; flex: none; }
-        .btn-struct { background: #444; color: #fff; margin-top: 5px; font-size: 12px; padding: 8px 15px; border-radius: 15px; flex: none; }
-
-        /* Inputs */
-        .row {
-            display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 10px;
-        }
-        input, select {
-            background-color: #333; color: white; border: 1px solid #555; padding: 10px;
-            border-radius: 6px; font-size: 14px; width: 100%; box-sizing: border-box;
-        }
-        .input-short { width: 70px; text-align: center; font-weight: bold; padding: 8px 4px; }
-
-        /* Players List */
-        .player-item {
-            display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 5px;
-            background: #2a2a2a; padding: 8px 12px; margin-bottom: 5px; border-radius: 6px;
-        }
-        
-        /* Table */
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
-        th, td { padding: 6px; text-align: center; border-bottom: 1px solid var(--border-color); }
-        th { color: var(--text-muted); font-weight: normal; }
-        .gold { color: var(--accent-gold); font-weight: bold; }
-
-        /* Modales */
-        .modal-overlay {
-            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.85); z-index: 1000;
-            display: flex; justify-content: center; align-items: center;
-        }
-        .modal-content {
-            background: var(--panel-bg); padding: 20px; border-radius: 12px;
-            width: 95%; max-width: 400px; max-height: 90vh; overflow-y: auto;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-        }
+        .pb-safe { padding-bottom: env(safe-area-inset-bottom, 20px); }
+        /* Masquer la barre de défilement tout en gardant le scroll */
+        ::-webkit-scrollbar { width: 0px; background: transparent; }
     </style>
 </head>
 <body>
+    <div id="root"></div>
 
-    <header>
-        <img src="OIP.webp" alt="Logo">
-        <select id="tournamentSelect" onchange="loadTournament()" style="flex:1;"></select>
-        <button class="btn-small" onclick="openRenameModal()">✏️</button>
-        <button class="btn-small btn-danger" onclick="confirmAction(this, deleteCurrentTournament, '🗑️')">🗑️</button>
-        <button class="btn-small btn-next" onclick="showModal('modal-new-tourney')">+ Créer</button>
-    </header>
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useMemo } = React;
 
-    <!-- Timer & Blinds -->
-    <div class="card">
-        <div class="blinds-display">
-            <span class="level-badge" id="levelDisplay">Niv. 1</span>
-            <div><span id="sb">10</span> / <span id="bb">20</span></div>
-            <button class="btn-struct" onclick="openStructureModal()">⚙️ Modifier Blinds & Temps</button>
-        </div>
-        <div class="timer-display" id="timeDisplay">15:00</div>
-        <div class="controls">
-            <button class="btn-play" id="btnPlay" onclick="toggleTimer()">▶ Play</button>
-            <button class="btn-prev" onclick="prevLevel()">⏮ Préc.</button>
-            <button class="btn-next" onclick="nextLevel()">⏭ Suiv.</button>
-            <button onclick="confirmAction(this, resetTimer, '🔄 Reset')">🔄 Reset</button>
-        </div>
-    </div>
+        // --- ICONS (SVG intégrés) ---
+        const Icon = ({ name, size = 24, className = '', strokeWidth = 2, fill = 'none' }) => {
+            const icons = {
+                Clock: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+                Users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+                Swords: '<polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"/><line x1="13" x2="19" y1="19" y2="13"/><line x1="16" x2="20" y1="16" y2="20"/><line x1="19" x2="21" y1="21" y2="19"/><polyline points="14.5 6.5 18 3 21 3 21 6 17.5 9.5"/><line x1="5" x2="9" y1="14" y2="18"/><line x1="7" x2="4" y1="17" y2="20"/><line x1="3" x2="5" y1="19" y2="21"/>',
+                Trophy: '<path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7c0 3.31 2.69 6 6 6s6-2.69 6-6V2Z"/>',
+                Play: '<polygon points="5 3 19 12 5 21 5 3"/>',
+                Pause: '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>',
+                SkipForward: '<polygon points="5 4 15 12 5 20 5 4"/><line x1="19" x2="19" y1="5" y2="19"/>',
+                SkipBack: '<polygon points="19 20 9 12 19 4 19 20"/><line x1="5" x2="5" y1="19" y2="5"/>',
+                Plus: '<line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/>',
+                Trash2: '<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/>',
+                Edit2: '<path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>',
+                Settings: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+                X: '<line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/>',
+                Medal: '<path d="M7.21 15 2.66 7.14a2 2 0 0 1 .13-2.2L4.4 2.8A2 2 0 0 1 6 2h12a2 2 0 0 1 1.6.8l1.6 2.14a2 2 0 0 1 .14 2.2L16.79 15"/><path d="M11 12 5.12 2.2"/><path d="m13 12 5.88-9.8"/><path d="M8 7h8"/><circle cx="12" cy="17" r="5"/><polyline points="12 18 10.9 15.2 8 15 10.3 13.1 9.4 10.3 12 11.9 14.6 10.3 13.7 13.1 16 15 13.1 15.2 12 18"/>',
+                ChevronRight: '<polyline points="9 18 15 12 9 6"/>',
+                DollarSign: '<line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'
+            };
+            return <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className} dangerouslySetInnerHTML={{__html: icons[name]}} />;
+        };
 
-    <!-- Paramètres -->
-    <div class="card">
-        <h3>Paramètres financiers & Règles</h3>
-        <div class="row">
-            <label>Buy-in (€)</label>
-            <input type="number" class="input-short" id="buyin" onchange="saveSettings()">
-        </div>
-        <div class="row">
-            <label>Malus (Pts / Recave)</label>
-            <div style="display:flex; gap:5px;">
-                <button class="btn-small" onclick="changeMalus(-1)">-</button>
-                <input type="number" class="input-short" id="rebuyMalus" readonly>
-                <button class="btn-small" onclick="changeMalus(1)">+</button>
-            </div>
-        </div>
-        <div class="row">
-            <label>Total des Recaves</label>
-            <input type="number" class="input-short" id="rebuysTotal" readonly style="background:#222; color:var(--accent-orange); border:none;">
-        </div>
-    </div>
+        // --- UTILITAIRES & AUDIO ---
+        const playBeep = () => {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gainNode = ctx.createGain();
+                
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(440, ctx.currentTime);
+                osc.frequency.setValueAtTime(880, ctx.currentTime + 0.2);
+                
+                gainNode.gain.setValueAtTime(0.5, ctx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+                
+                osc.connect(gainNode);
+                gainNode.connect(ctx.destination);
+                
+                osc.start();
+                osc.stop(ctx.currentTime + 0.5);
+            } catch (e) {
+                console.log("Audio non supporté", e);
+            }
+        };
 
-    <!-- Gestion des Joueurs -->
-    <div class="card">
-        <h3>Joueurs Inscrits : <span id="playerCount">0</span></h3>
-        <div class="row">
-            <input type="text" id="newPlayerName" placeholder="Nom du joueur...">
-            <button class="btn-small btn-next" onclick="addPlayer()">Ajouter</button>
-        </div>
-        <div id="activePlayersList"></div>
-    </div>
-
-    <!-- Tableau des Scores (Ce tournoi) -->
-    <div class="card">
-        <div class="row">
-            <h3 style="margin:0;">Points du Tournoi</h3>
-            <strong style="color: var(--accent-green);">Prizepool: <span id="prizepoolTotal">0</span> €</strong>
-        </div>
-        <table>
-            <thead><tr><th>Pos.</th><th>Joueur</th><th>Pts</th><th>Gain</th></tr></thead>
-            <tbody id="leaderboard"></tbody>
-        </table>
-    </div>
-
-    <!-- CUMUL GÉNÉRAL -->
-    <div class="card" style="border: 2px solid var(--accent-gold);">
-        <h3 style="margin-top:0; color:var(--accent-gold); text-align:center;">🏆 CLASSEMENT GÉNÉRAL CUMULÉ 🏆</h3>
-        <p style="font-size:12px; color:var(--text-muted); text-align:center; margin-top:-5px;">(Tous les tournois enregistrés)</p>
-        <table>
-            <thead><tr><th>Joueur</th><th>T.</th><th>Rec.</th><th>Pts</th><th>Gains</th></tr></thead>
-            <tbody id="globalLeaderboard"></tbody>
-        </table>
-    </div>
-
-    <!-- MODALES -->
-    <div id="modalOverlay" class="modal-overlay" style="display:none;">
-        
-        <!-- Créer Tournoi -->
-        <div id="modal-new-tourney" class="modal-content" style="display:none;">
-            <h3>Créer un nouveau tournoi</h3>
-            <input type="text" id="newTourneyInput" placeholder="Ex: Soirée Poker" style="margin-bottom: 15px;">
-            <div class="controls">
-                <button class="btn-danger" onclick="hideModals()">Annuler</button>
-                <button class="btn-play" onclick="confirmCreateTourney()">Créer</button>
-            </div>
-        </div>
-
-        <!-- Renommer Tournoi -->
-        <div id="modal-rename" class="modal-content" style="display:none;">
-            <h3>Renommer le tournoi</h3>
-            <input type="text" id="renameInput" style="margin-bottom: 15px;">
-            <div class="controls">
-                <button class="btn-danger" onclick="hideModals()">Annuler</button>
-                <button class="btn-play" onclick="confirmRename()">Enregistrer</button>
-            </div>
-        </div>
-
-        <!-- Modifier Gain Manuel -->
-        <div id="modal-prize" class="modal-content" style="display:none;">
-            <h3 id="prizeModalTitle">Définir le gain</h3>
-            <p style="font-size:12px; color:var(--text-muted); margin-top:-5px;">Ce montant écrasera le calcul automatique par pourcentage.</p>
-            <input type="number" id="prizeInput" placeholder="Montant en €" style="margin-bottom: 15px;">
-            <input type="hidden" id="prizePlayerId">
-            <div class="controls">
-                <button class="btn-danger" onclick="hideModals()">Annuler</button>
-                <button class="btn-next" onclick="resetManualPrize()">Mode Auto</button>
-                <button class="btn-play" onclick="saveManualPrize()">Valider</button>
-            </div>
-        </div>
-
-        <!-- Éditeur de Structure -->
-        <div id="modal-structure" class="modal-content" style="display:none; max-width: 500px;">
-            <h3 style="margin-top:0;">Structure (Blinds & Temps)</h3>
-            <div class="row" style="font-size:12px; color:var(--text-muted); font-weight:bold; margin-bottom:5px;">
-                <span style="width:30px;">Niv</span>
-                <span style="flex:1; text-align:center;">Petite B.</span>
-                <span style="flex:1; text-align:center;">Grosse B.</span>
-                <span style="flex:1; text-align:center;">Min.</span>
-                <span style="width:30px;"></span>
-            </div>
-            <div id="structureList" style="max-height: 50vh; overflow-y:auto; margin-bottom:15px; padding-right:5px;">
-                <!-- Rempli par JS -->
-            </div>
-            <button class="btn-next" style="width:100%; margin-bottom:15px;" onclick="addTempLevel()">+ Ajouter un niveau</button>
-            <div class="controls">
-                <button class="btn-danger" onclick="hideModals()">Annuler</button>
-                <button class="btn-play" onclick="saveStructure()">Valider</button>
-            </div>
-        </div>
-
-    </div>
-
-    <script>
-        // --- DONNÉES & STRUCTURE PAR DÉFAUT ---
-        let tournaments = JSON.parse(localStorage.getItem('pokerTournamentsV12')) || {};
-        let currentId = localStorage.getItem('currentTourneyIdV12') || null;
-        
-        const defaultLevels = [
-            {sb: 10, bb: 20, duration: 15}, {sb: 20, bb: 40, duration: 15},
-            {sb: 30, bb: 60, duration: 15}, {sb: 40, bb: 80, duration: 15},
-            {sb: 50, bb: 100, duration: 15}, {sb: 100, bb: 200, duration: 15},
-            {sb: 200, bb: 400, duration: 15}, {sb: 300, bb: 600, duration: 15},
-            {sb: 500, bb: 1000, duration: 15}
+        const DEFAULT_BLINDS = [
+            { id: 1, sb: 10, bb: 20, ante: 0, duration: 15 },
+            { id: 2, sb: 20, bb: 40, ante: 0, duration: 15 },
+            { id: 3, sb: 30, bb: 60, ante: 0, duration: 15 },
+            { id: 4, sb: 50, bb: 100, ante: 10, duration: 15 },
+            { id: 5, sb: 100, bb: 200, ante: 20, duration: 20 },
+            { id: 6, sb: 200, bb: 400, ante: 40, duration: 20 },
+            { id: 7, sb: 500, bb: 1000, ante: 100, duration: 20 },
         ];
 
-        let tData = null;
-        let tempLevels = [];
-        let timerInterval = null;
-        let isRunning = false;
-        
-        // Audio Context pour la sonnerie
-        let audioCtx = null;
+        const calcPoints = (rank, totalPlayers, buyIn, prizeMoney, kills, rebuys) => {
+            if (totalPlayers === 0 || rank === 0) return 0;
+            const rankTerm = 40 * (0.5 * Math.sqrt(Math.max(0, 1 - (rank / totalPlayers))));
+            const buyInTerm = 0.3 * Math.sqrt(Math.max(0, buyIn));
+            const prizeTerm = 0.1 * Math.sqrt(Math.max(0, prizeMoney));
+            const combatTerm = Math.sqrt(Math.max(0, kills * 1.5)) - Math.sqrt(Math.max(0, rebuys * 0.4));
+            return rankTerm + buyInTerm + prizeTerm + combatTerm;
+        };
 
-        // --- INIT ---
-        function init() {
-            if (Object.keys(tournaments).length === 0) {
-                let id = 't_' + Date.now();
-                tournaments[id] = {
-                    name: "Tournoi Principal", buyin: 20, rebuyMalus: 1, levelIndex: 0,
-                    timeRemaining: 15 * 60, levels: JSON.parse(JSON.stringify(defaultLevels)), players: []
-                };
-                currentId = id;
-            }
-            if (!currentId || !tournaments[currentId]) currentId = Object.keys(tournaments)[0];
-            
-            updateSelectMenu();
-            loadTournament(currentId);
-        }
+        function App() {
+            const [activeTab, setActiveTab] = useState('timer');
+            const [isFlashing, setIsFlashing] = useState(false);
 
-        // --- SONNERIE ---
-        function playAlarm() {
-            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-            
-            for(let i=0; i<3; i++) {
-                setTimeout(() => {
-                    const osc = audioCtx.createOscillator();
-                    const gain = audioCtx.createGain();
-                    osc.type = 'triangle';
-                    osc.frequency.value = 800;
+            const [players, setPlayers] = useState([
+                { id: '1', name: 'Alice' },
+                { id: '2', name: 'Bob' },
+                { id: '3', name: 'Charlie' }
+            ]);
+
+            const [tournaments, setTournaments] = useState([]);
+            const [blinds, setBlinds] = useState(DEFAULT_BLINDS);
+
+            const [currentLevelIdx, setCurrentLevelIdx] = useState(0);
+            const [timeLeft, setTimeLeft] = useState(DEFAULT_BLINDS[0].duration * 60);
+            const [isRunning, setIsRunning] = useState(false);
+
+            useEffect(() => {
+                let interval = null;
+                if (isRunning && timeLeft > 0) {
+                    interval = setInterval(() => {
+                        setTimeLeft((t) => t - 1);
+                    }, 1000);
+                } else if (isRunning && timeLeft === 0) {
+                    playBeep();
+                    setIsFlashing(true);
+                    setTimeout(() => setIsFlashing(false), 2000);
                     
-                    gain.gain.setValueAtTime(1, audioCtx.currentTime);
-                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
-                    
-                    osc.connect(gain);
-                    gain.connect(audioCtx.destination);
-                    osc.start();
-                    osc.stop(audioCtx.currentTime + 0.3);
-                }, i * 400); 
-            }
-        }
-
-        // --- MODALES ---
-        function showModal(id) {
-            document.getElementById('modalOverlay').style.display = 'flex';
-            document.querySelectorAll('.modal-content').forEach(el => el.style.display = 'none');
-            document.getElementById(id).style.display = 'block';
-        }
-        function hideModals() { document.getElementById('modalOverlay').style.display = 'none'; }
-
-        // --- GESTION TOURNOIS ---
-        function confirmCreateTourney() {
-            let name = document.getElementById('newTourneyInput').value.trim() || "Nouveau Tournoi";
-            let id = 't_' + Date.now();
-            
-            tournaments[id] = {
-                name: name, buyin: 20, rebuyMalus: 1, levelIndex: 0,
-                timeRemaining: 15 * 60, levels: JSON.parse(JSON.stringify(defaultLevels)), players: []
-            };
-            
-            currentId = id;
-            tData = tournaments[id];
-            
-            hideModals();
-            document.getElementById('newTourneyInput').value = '';
-            
-            updateSelectMenu();
-            loadTournament(id);
-        }
-
-        function openRenameModal() {
-            document.getElementById('renameInput').value = tData.name;
-            showModal('modal-rename');
-        }
-        
-        function confirmRename() {
-            let val = document.getElementById('renameInput').value.trim();
-            if(val) { tData.name = val; saveAll(); updateSelectMenu(); }
-            hideModals();
-        }
-
-        function deleteCurrentTournament() {
-            if (isRunning) toggleTimer(); 
-            delete tournaments[currentId];
-            
-            let remainingIds = Object.keys(tournaments);
-            if (remainingIds.length === 0) {
-                let id = 't_' + Date.now();
-                tournaments[id] = {
-                    name: "Tournoi Principal", buyin: 20, rebuyMalus: 1, levelIndex: 0,
-                    timeRemaining: 15 * 60, levels: JSON.parse(JSON.stringify(defaultLevels)), players: []
-                };
-                currentId = id;
-            } else {
-                currentId = remainingIds[0];
-            }
-            
-            tData = tournaments[currentId];
-            saveAll();
-            updateSelectMenu();
-            loadTournament(currentId);
-        }
-
-        function updateSelectMenu() {
-            const select = document.getElementById('tournamentSelect');
-            select.innerHTML = '';
-            for (let id in tournaments) {
-                let opt = document.createElement('option');
-                opt.value = id; opt.textContent = tournaments[id].name;
-                if (id === currentId) opt.selected = true;
-                select.appendChild(opt);
-            }
-        }
-
-        function loadTournament(id = null) {
-            if (!id) id = document.getElementById('tournamentSelect').value;
-            currentId = id;
-            tData = tournaments[id];
-            
-            if (tData.rebuyMalus === undefined) tData.rebuyMalus = 1;
-
-            document.getElementById('buyin').value = tData.buyin;
-            document.getElementById('rebuyMalus').value = tData.rebuyMalus;
-            
-            if (isRunning) toggleTimer(); 
-            updateUI(); saveAll();
-        }
-
-        function saveSettings() {
-            tData.buyin = parseInt(document.getElementById('buyin').value) || 0;
-            saveAll(); updateUI();
-        }
-
-        function changeMalus(delta) {
-            if (tData.rebuyMalus + delta >= 0) {
-                tData.rebuyMalus += delta;
-                document.getElementById('rebuyMalus').value = tData.rebuyMalus;
-                updateUI(); saveAll();
-            }
-        }
-
-        function saveAll() {
-            tournaments[currentId] = tData;
-            localStorage.setItem('pokerTournamentsV12', JSON.stringify(tournaments));
-            localStorage.setItem('currentTourneyIdV12', currentId);
-        }
-
-        // --- GESTION GAINS MANUELS ---
-        function openPrizeModal(id, name, currentPrize) {
-            document.getElementById('prizeModalTitle').innerText = "Gain de " + name;
-            document.getElementById('prizeInput').value = currentPrize || '';
-            document.getElementById('prizePlayerId').value = id;
-            showModal('modal-prize');
-        }
-
-        function saveManualPrize() {
-            let id = parseInt(document.getElementById('prizePlayerId').value);
-            let val = parseFloat(document.getElementById('prizeInput').value);
-            let player = tData.players.find(p => p.id === id);
-            if (player) {
-                player.manualPrize = isNaN(val) ? null : val;
-                saveAll(); updateUI(); hideModals();
-            }
-        }
-
-        function resetManualPrize() {
-            let id = parseInt(document.getElementById('prizePlayerId').value);
-            let player = tData.players.find(p => p.id === id);
-            if (player) {
-                player.manualPrize = null;
-                saveAll(); updateUI(); hideModals();
-            }
-        }
-
-        // --- STRUCTURE (BLINDS ET TEMPS) ---
-        function openStructureModal() {
-            tempLevels = JSON.parse(JSON.stringify(tData.levels));
-            renderStructureModal();
-            showModal('modal-structure');
-        }
-
-        function renderStructureModal() {
-            const container = document.getElementById('structureList');
-            container.innerHTML = '';
-            tempLevels.forEach((lvl, i) => {
-                container.innerHTML += `
-                    <div class="row" style="background:#222; padding:5px; border-radius:5px; gap:5px;">
-                        <span style="width:25px; font-size:12px; color:var(--accent-red);">${i+1}</span>
-                        <input type="number" class="input-short" value="${lvl.sb}" onchange="tempLevels[${i}].sb=parseInt(this.value)">
-                        <input type="number" class="input-short" value="${lvl.bb}" onchange="tempLevels[${i}].bb=parseInt(this.value)">
-                        <input type="number" class="input-short" value="${lvl.duration}" onchange="tempLevels[${i}].duration=parseInt(this.value)">
-                        <button class="btn-danger btn-small" style="padding:8px;" onclick="removeTempLevel(${i})">X</button>
-                    </div>
-                `;
-            });
-        }
-
-        function addTempLevel() {
-            let last = tempLevels[tempLevels.length - 1] || {sb:10, bb:20, duration:15};
-            tempLevels.push({sb: last.sb*2, bb: last.bb*2, duration: last.duration});
-            renderStructureModal();
-        }
-
-        function removeTempLevel(idx) {
-            if(tempLevels.length > 1) { tempLevels.splice(idx, 1); renderStructureModal(); }
-        }
-
-        function saveStructure() {
-            tData.levels = tempLevels;
-            if(tData.levelIndex >= tData.levels.length) tData.levelIndex = tData.levels.length - 1;
-            hideModals(); updateUI(); saveAll();
-        }
-
-        // --- TIMER ---
-        function formatTime(sec) {
-            const m = Math.floor(sec / 60).toString().padStart(2, '0');
-            const s = (sec % 60).toString().padStart(2, '0');
-            return `${m}:${s}`;
-        }
-
-        function toggleTimer() {
-            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-            
-            const btn = document.getElementById('btnPlay');
-            
-            if (isRunning) {
-                clearInterval(timerInterval);
-                btn.innerText = "▶ Play"; btn.classList.replace('btn-pause', 'btn-play');
-                isRunning = false;
-            } else {
-                isRunning = true;
-                btn.innerText = "⏸ Pause"; btn.classList.replace('btn-play', 'btn-pause');
-                
-                timerInterval = setInterval(() => {
-                    if (tData.timeRemaining > 0) {
-                        tData.timeRemaining--;
-                        document.getElementById('timeDisplay').innerText = formatTime(tData.timeRemaining);
+                    if (currentLevelIdx < blinds.length - 1) {
+                        const nextIdx = currentLevelIdx + 1;
+                        setCurrentLevelIdx(nextIdx);
+                        setTimeLeft(blinds[nextIdx].duration * 60);
                     } else {
-                        playAlarm();
-                        document.body.style.backgroundColor = "var(--accent-red)";
-                        setTimeout(() => document.body.style.backgroundColor = "var(--bg-color)", 1000);
-                        
-                        if(tData.levelIndex < tData.levels.length - 1) {
-                            tData.levelIndex++;
-                            tData.timeRemaining = tData.levels[tData.levelIndex].duration * 60;
-                            updateUI(); 
-                            saveAll();
-                        } else {
-                            clearInterval(timerInterval);
-                            isRunning = false;
-                            btn.innerText = "▶ Play"; btn.classList.replace('btn-pause', 'btn-play');
-                        }
-                    }
-                }, 1000);
-            }
-        }
-
-        function nextLevel() {
-            if(tData.levelIndex < tData.levels.length - 1) {
-                tData.levelIndex++;
-            }
-            tData.timeRemaining = tData.levels[tData.levelIndex].duration * 60;
-            updateUI(); saveAll();
-        }
-
-        function prevLevel() {
-            if(tData.levelIndex > 0) {
-                tData.levelIndex--;
-            }
-            // Si on est déjà au niveau 1 (index 0), ça relance simplement le chrono du niveau 1
-            tData.timeRemaining = tData.levels[tData.levelIndex].duration * 60;
-            updateUI(); saveAll();
-        }
-
-        function resetTimer() {
-            tData.levelIndex = 0;
-            tData.timeRemaining = tData.levels[0].duration * 60;
-            if (isRunning) toggleTimer(); 
-            updateUI(); saveAll();
-        }
-
-        // Sécurité Double-Tap
-        function confirmAction(btn, actionFunc, defaultText, idParam=null) {
-            if (btn.innerText === defaultText || btn.innerText === "Out" || btn.innerText === "❌" || btn.innerText === "🗑️") {
-                btn.dataset.original = btn.innerText;
-                btn.dataset.color = btn.style.backgroundColor;
-                btn.innerText = "Sûr ?";
-                btn.style.backgroundColor = "var(--accent-orange)";
-                setTimeout(() => { 
-                    if(btn.innerText === "Sûr ?") { btn.innerText = btn.dataset.original; btn.style.backgroundColor = btn.dataset.color; } 
-                }, 3000);
-            } else {
-                actionFunc(idParam);
-                btn.innerText = btn.dataset.original; btn.style.backgroundColor = btn.dataset.color;
-            }
-        }
-
-        // --- JOUEURS ET RECAVES ---
-        function addPlayer() {
-            const input = document.getElementById('newPlayerName');
-            const name = input.value.trim();
-            if (name) {
-                let cleanName = name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
-                tData.players.push({ id: Date.now(), name: cleanName, active: true, rank: null, rebuys: 0, manualPrize: null });
-                input.value = ''; updateUI(); saveAll();
-            }
-        }
-
-        function addPlayerRebuy(id) {
-            let player = tData.players.find(p => p.id === id);
-            if (player) {
-                player.rebuys = (player.rebuys || 0) + 1;
-                updateUI(); saveAll();
-            }
-        }
-
-        function doEliminate(id) {
-            let activeCount = tData.players.filter(p => p.active).length;
-            let player = tData.players.find(p => p.id === id);
-            if (player && player.active) { player.active = false; player.rank = activeCount; updateUI(); saveAll(); }
-        }
-
-        function reactivatePlayer(id) {
-            let player = tData.players.find(p => p.id === id);
-            if (player) { player.active = true; player.rank = null; updateUI(); saveAll(); }
-        }
-
-        function doDelete(id) {
-            tData.players = tData.players.filter(p => p.id !== id);
-            let eliminated = tData.players.filter(p => !p.active).sort((a,b) => b.rank - a.rank);
-            let activeCount = tData.players.filter(p => p.active).length;
-            eliminated.forEach((p, index) => { p.rank = activeCount + index + 1; });
-            updateUI(); saveAll();
-        }
-
-        // --- CALCULS ET UI ---
-        function getTournamentResults(tourney) {
-            let results = [];
-            let totalRebuys = tourney.players.reduce((sum, p) => sum + (p.rebuys || 0), 0);
-            let totalEntries = tourney.players.length + totalRebuys;
-            let prizepool = totalEntries * tourney.buyin;
-            let placesPayees = Math.max(1, Math.ceil(tourney.players.length / 4));
-            
-            let activePlayers = tourney.players.filter(p => p.active);
-            let eliminatedPlayers = tourney.players.filter(p => !p.active).sort((a, b) => a.rank - b.rank);
-            
-            let displayLeaderboard = [...eliminatedPlayers];
-            if (activePlayers.length === 1 && tourney.players.length > 1) {
-                displayLeaderboard.unshift({...activePlayers[0], rank: 1});
-            }
-
-            let malusVal = tourney.rebuyMalus !== undefined ? tourney.rebuyMalus : 1;
-
-            displayLeaderboard.forEach(p => {
-                let basePoints = Math.round((Math.sqrt(tourney.players.length) / Math.sqrt(p.rank)) * 10);
-                let malusDeduction = (p.rebuys || 0) * malusVal;
-                let points = Math.max(0, basePoints - malusDeduction); 
-                
-                let gain = 0;
-                if (p.rank <= placesPayees) {
-                    if (placesPayees === 1) gain = prizepool;
-                    else if (placesPayees === 2) gain = p.rank === 1 ? prizepool * 0.65 : prizepool * 0.35;
-                    else if (placesPayees === 3) gain = p.rank === 1 ? prizepool * 0.50 : p.rank === 2 ? prizepool * 0.30 : prizepool * 0.20;
-                    else {
-                        let part = (placesPayees - p.rank + 1) / ((placesPayees * (placesPayees + 1)) / 2);
-                        gain = prizepool * part;
+                        setIsRunning(false);
                     }
                 }
-                
-                let isManual = p.manualPrize !== undefined && p.manualPrize !== null;
-                if (isManual) gain = p.manualPrize;
+                return () => clearInterval(interval);
+            }, [isRunning, timeLeft, currentLevelIdx, blinds]);
 
-                results.push({ name: p.name, rank: p.rank, points: points, gain: gain, rebuys: p.rebuys || 0, isManual: isManual });
-            });
+            const handlePlayPause = () => setIsRunning(!isRunning);
             
-            return { totalRebuys, prizepool, results, activePlayers, displayLeaderboard };
+            const handleNext = () => {
+                if (currentLevelIdx < blinds.length - 1) {
+                    const nextIdx = currentLevelIdx + 1;
+                    setCurrentLevelIdx(nextIdx);
+                    setTimeLeft(blinds[nextIdx].duration * 60);
+                    setIsRunning(true);
+                }
+            };
+
+            const handlePrev = () => {
+                if (currentLevelIdx > 0) {
+                    const prevIdx = currentLevelIdx - 1;
+                    setCurrentLevelIdx(prevIdx);
+                    setTimeLeft(blinds[prevIdx].duration * 60);
+                    setIsRunning(false);
+                }
+            };
+
+            const formatTime = (seconds) => {
+                const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+                const s = (seconds % 60).toString().padStart(2, '0');
+                return `${m}:${s}`;
+            };
+
+            const renderContent = () => {
+                switch (activeTab) {
+                    case 'timer': return <TimerView blinds={blinds} setBlinds={setBlinds} currentLevelIdx={currentLevelIdx} timeLeft={timeLeft} isRunning={isRunning} handlePlayPause={handlePlayPause} handleNext={handleNext} handlePrev={handlePrev} formatTime={formatTime} />;
+                    case 'players': return <PlayersView players={players} setPlayers={setPlayers} />;
+                    case 'tournaments': return <TournamentsView tournaments={tournaments} setTournaments={setTournaments} players={players} />;
+                    case 'ranking': return <RankingView tournaments={tournaments} players={players} />;
+                    default: return null;
+                }
+            };
+
+            return (
+                <div className={`min-h-screen text-gray-100 font-sans transition-colors duration-300 ${isFlashing ? 'bg-blue-900/60' : 'bg-transparent'}`}>
+                    {/* Conteneur de l'application avec Glassmorphism */}
+                    <div className="max-w-md mx-auto bg-gray-950/60 min-h-screen shadow-2xl overflow-hidden flex flex-col relative pb-16 backdrop-blur-xl border-x border-gray-800/50">
+                        <header className="bg-gray-900/50 backdrop-blur-lg p-4 shadow-md flex items-center justify-between z-10 border-b border-gray-700/50">
+                            <div className="flex items-center space-x-3">
+                                <img 
+                                    src="1dc15502-f344-4256-ac8b-bc732dcaccd6.jpg" 
+                                    alt="Poker Logo" 
+                                    className="w-10 h-10 rounded-full border-2 border-blue-500 object-cover shadow-[0_0_10px_rgba(59,130,246,0.5)]"
+                                    onError={(e) => { e.target.src = 'https://placehold.co/100x100/111827/3b82f6?text=PKR'; }}
+                                />
+                                <h1 className="text-xl font-bold tracking-wider text-blue-500 uppercase drop-shadow-md">Poker</h1>
+                            </div>
+                            
+                            {activeTab !== 'timer' && (
+                                <div onClick={() => setActiveTab('timer')} className={`cursor-pointer px-3 py-1 rounded-full text-sm font-mono font-bold flex items-center space-x-2 transition-colors ${isRunning ? 'bg-blue-900/70 text-blue-300 border border-blue-500/50 animate-pulse shadow-[0_0_10px_rgba(59,130,246,0.3)]' : 'bg-gray-800/60 text-gray-300 border border-gray-700/50'}`}>
+                                    <Icon name="Clock" size={14} />
+                                    <span>{blinds[currentLevelIdx]?.sb}/{blinds[currentLevelIdx]?.bb} - {formatTime(timeLeft)}</span>
+                                </div>
+                            )}
+                        </header>
+
+                        <main className="flex-1 overflow-y-auto overflow-x-hidden">
+                            {renderContent()}
+                        </main>
+
+                        <nav className="absolute bottom-0 w-full bg-gray-900/80 backdrop-blur-lg border-t border-gray-800/50 flex justify-around p-2 pb-safe shadow-[0_-10px_40px_rgba(0,0,0,0.5)] z-20">
+                            <NavItem icon="Clock" label="Timer" isActive={activeTab === 'timer'} onClick={() => setActiveTab('timer')} />
+                            <NavItem icon="Users" label="Joueurs" isActive={activeTab === 'players'} onClick={() => setActiveTab('players')} />
+                            <NavItem icon="Swords" label="Tournois" isActive={activeTab === 'tournaments'} onClick={() => setActiveTab('tournaments')} />
+                            <NavItem icon="Trophy" label="Classement" isActive={activeTab === 'ranking'} onClick={() => setActiveTab('ranking')} />
+                        </nav>
+                    </div>
+                </div>
+            );
         }
 
-        function updateUI() {
-            let currentLvl = tData.levels[tData.levelIndex];
-            document.getElementById('levelDisplay').innerText = "Niveau " + (tData.levelIndex + 1);
-            document.getElementById('sb').innerText = currentLvl.sb;
-            document.getElementById('bb').innerText = currentLvl.bb;
-            document.getElementById('timeDisplay').innerText = formatTime(tData.timeRemaining);
+        function NavItem({ icon, label, isActive, onClick }) {
+            return (
+                <button onClick={onClick} className={`flex flex-col items-center p-2 rounded-lg transition-colors ${isActive ? 'text-blue-500 drop-shadow-[0_0_8px_rgba(59,130,246,0.8)]' : 'text-gray-400 hover:text-gray-200'}`}>
+                    <Icon name={icon} size={24} strokeWidth={isActive ? 2.5 : 2} />
+                    <span className="text-[10px] mt-1 font-medium">{label}</span>
+                </button>
+            );
+        }
 
-            let tRes = getTournamentResults(tData);
-            document.getElementById('rebuysTotal').value = tRes.totalRebuys;
-            document.getElementById('prizepoolTotal').innerText = tRes.prizepool;
-            document.getElementById('playerCount').innerText = tData.players.length;
+        function TimerView({ blinds, setBlinds, currentLevelIdx, timeLeft, isRunning, handlePlayPause, handleNext, handlePrev, formatTime }) {
+            const [showSettings, setShowSettings] = useState(false);
+            const currentLevel = blinds[currentLevelIdx] || {};
+            const nextLevel = blinds[currentLevelIdx + 1];
 
-            const activeList = document.getElementById('activePlayersList');
-            const leaderboard = document.getElementById('leaderboard');
-            activeList.innerHTML = ''; leaderboard.innerHTML = '';
+            return (
+                <div className="flex flex-col h-full p-4">
+                    <div className="flex justify-end mb-2">
+                        <button onClick={() => setShowSettings(!showSettings)} className="p-2 bg-gray-800/60 backdrop-blur rounded-full text-gray-300 hover:bg-gray-700/60">
+                            <Icon name="Settings" size={20} />
+                        </button>
+                    </div>
 
-            tRes.activePlayers.forEach(p => {
-                let rebuyText = p.rebuys > 0 ? ` <span style="font-size:12px; color:var(--accent-orange);">(${p.rebuys} rec.)</span>` : '';
-                activeList.innerHTML += `
-                    <div class="player-item">
-                        <span style="font-weight:bold;">🟢 ${p.name}${rebuyText}</span>
-                        <div style="display:flex; gap:5px; margin-top:5px;">
-                            <button class="btn-small btn-next" onclick="confirmAction(this, addPlayerRebuy, '+ Recave', ${p.id})">+ Recave</button>
-                            <button class="btn-small btn-danger" onclick="confirmAction(this, doEliminate, 'Out', ${p.id})">Out</button>
-                            <button class="btn-small" style="background:#555;" onclick="confirmAction(this, doDelete, '❌', ${p.id})">❌</button>
+                    {showSettings ? (
+                        <BlindSettings blinds={blinds} setBlinds={setBlinds} close={() => setShowSettings(false)} />
+                    ) : (
+                        <div className="flex-1 flex flex-col items-center justify-center space-y-8">
+                            <div className="text-center">
+                                <h2 className="text-2xl font-bold text-gray-300 mb-1 drop-shadow-md">Niveau {currentLevelIdx + 1}</h2>
+                                <div className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300 drop-shadow-lg">
+                                    {currentLevel.sb} / {currentLevel.bb}
+                                </div>
+                                {currentLevel.ante > 0 && <div className="text-lg text-gray-400 mt-2 font-medium">Ante: {currentLevel.ante}</div>}
+                            </div>
+
+                            <div className={`text-8xl font-mono font-bold tracking-tighter drop-shadow-[0_0_15px_rgba(0,0,0,0.8)] ${timeLeft <= 60 && isRunning ? 'text-blue-500 animate-pulse drop-shadow-[0_0_20px_rgba(59,130,246,0.6)]' : 'text-white'}`}>
+                                {formatTime(timeLeft)}
+                            </div>
+
+                            {nextLevel ? (
+                                <div className="bg-gray-800/50 backdrop-blur px-6 py-2 rounded-full text-sm text-gray-300 border border-gray-700/50 shadow-inner">
+                                    Suivant: <span className="font-bold text-white">{nextLevel.sb}/{nextLevel.bb}</span> ({nextLevel.duration}m)
+                                </div>
+                            ) : (
+                                <div className="bg-gray-800/50 backdrop-blur px-6 py-2 rounded-full text-sm text-gray-300 border border-gray-700/50 shadow-inner">
+                                    Dernier niveau
+                                </div>
+                            )}
+
+                            <div className="flex items-center space-x-6 mt-8">
+                                <button onClick={handlePrev} disabled={currentLevelIdx === 0} className="p-4 bg-gray-800/60 backdrop-blur border border-gray-700/50 rounded-full disabled:opacity-30 hover:bg-gray-700/60 transition-colors">
+                                    <Icon name="SkipBack" size={28} />
+                                </button>
+                                <button onClick={handlePlayPause} className="p-6 bg-blue-600 rounded-full shadow-[0_0_25px_rgba(59,130,246,0.5)] transform active:scale-95 transition-all text-white hover:bg-blue-500">
+                                    {isRunning ? <Icon name="Pause" size={40} fill="currentColor" /> : <Icon name="Play" size={40} fill="currentColor" className="ml-2" />}
+                                </button>
+                                <button onClick={handleNext} disabled={currentLevelIdx === blinds.length - 1} className="p-4 bg-gray-800/60 backdrop-blur border border-gray-700/50 rounded-full disabled:opacity-30 hover:bg-gray-700/60 transition-colors">
+                                    <Icon name="SkipForward" size={28} />
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        function BlindSettings({ blinds, setBlinds, close }) {
+            const updateBlind = (index, field, value) => {
+                const newBlinds = [...blinds];
+                newBlinds[index][field] = Number(value);
+                setBlinds(newBlinds);
+            };
+
+            const addLevel = () => {
+                const last = blinds[blinds.length - 1];
+                setBlinds([...blinds, { id: Date.now(), sb: last.sb * 2, bb: last.bb * 2, ante: last.ante * 2, duration: last.duration }]);
+            };
+
+            return (
+                <div className="bg-gray-800/70 backdrop-blur-md rounded-xl p-4 flex-1 overflow-y-auto border border-gray-700/50">
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="font-bold text-lg text-white">Structure des Blinds</h3>
+                        <button onClick={close} className="text-gray-400 hover:text-white"><Icon name="X" size={24} /></button>
+                    </div>
+                    <div className="space-y-3">
+                        <div className="grid grid-cols-4 gap-2 text-xs font-bold text-blue-400 uppercase tracking-wider px-2">
+                            <div>SB</div><div>BB</div><div>Ante</div><div>Min.</div>
+                        </div>
+                        {blinds.map((b, i) => (
+                            <div key={b.id} className="grid grid-cols-4 gap-2 bg-gray-900/50 p-2 rounded-lg items-center border border-gray-700/30">
+                                <input type="number" value={b.sb} onChange={(e) => updateBlind(i, 'sb', e.target.value)} className="bg-transparent border-b border-gray-600 focus:border-blue-500 outline-none w-full text-center p-1 text-white" />
+                                <input type="number" value={b.bb} onChange={(e) => updateBlind(i, 'bb', e.target.value)} className="bg-transparent border-b border-gray-600 focus:border-blue-500 outline-none w-full text-center p-1 text-white" />
+                                <input type="number" value={b.ante} onChange={(e) => updateBlind(i, 'ante', e.target.value)} className="bg-transparent border-b border-gray-600 focus:border-blue-500 outline-none w-full text-center p-1 text-white" />
+                                <input type="number" value={b.duration} onChange={(e) => updateBlind(i, 'duration', e.target.value)} className="bg-transparent border-b border-gray-600 focus:border-blue-500 outline-none w-full text-center p-1 text-blue-300 font-bold" />
+                            </div>
+                        ))}
+                        <button onClick={addLevel} className="w-full py-3 mt-4 border-2 border-dashed border-gray-600/70 rounded-lg text-gray-300 hover:text-white hover:border-blue-500 flex justify-center items-center transition-colors">
+                            <Icon name="Plus" size={20} className="mr-2" /> Ajouter un niveau
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+
+        function PlayersView({ players, setPlayers }) {
+            const [newPlayer, setNewPlayer] = useState('');
+
+            const handleAdd = (e) => {
+                e.preventDefault();
+                if (newPlayer.trim()) {
+                    setPlayers([...players, { id: Date.now().toString(), name: newPlayer.trim() }]);
+                    setNewPlayer('');
+                }
+            };
+
+            const handleRemove = (id) => {
+                setPlayers(players.filter(p => p.id !== id));
+            };
+
+            return (
+                <div className="p-4 h-full flex flex-col">
+                    <h2 className="text-2xl font-bold mb-6 drop-shadow-md">Joueurs</h2>
+                    <form onSubmit={handleAdd} className="flex space-x-2 mb-6">
+                        <input type="text" value={newPlayer} onChange={(e) => setNewPlayer(e.target.value)} placeholder="Nom du joueur..." className="flex-1 bg-gray-800/60 backdrop-blur-sm text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-inner" />
+                        <button type="submit" className="bg-blue-600 hover:bg-blue-500 px-4 py-3 rounded-lg font-bold shadow-[0_0_15px_rgba(59,130,246,0.4)] text-white transition-colors"><Icon name="Plus" size={24} /></button>
+                    </form>
+                    <div className="flex-1 overflow-y-auto space-y-3 pb-4">
+                        {players.map(player => (
+                            <div key={player.id} className="flex justify-between items-center bg-gray-800/40 backdrop-blur-md p-4 rounded-xl border border-gray-700/50 shadow-sm hover:border-blue-500/30 transition-colors">
+                                <div className="flex items-center space-x-4">
+                                    <div className="w-10 h-10 bg-blue-900/50 border border-blue-500/40 rounded-full flex items-center justify-center font-bold text-blue-300 shadow-inner">{player.name.substring(0, 2).toUpperCase()}</div>
+                                    <span className="font-semibold text-lg text-white">{player.name}</span>
+                                </div>
+                                <button onClick={() => handleRemove(player.id)} className="text-red-400/80 hover:text-red-400 p-2 bg-red-900/20 rounded-full transition-colors"><Icon name="Trash2" size={20} /></button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        }
+
+        function TournamentsView({ tournaments, setTournaments, players }) {
+            const [view, setView] = useState('list');
+            const [selectedTourney, setSelectedTourney] = useState(null);
+            const [name, setName] = useState('');
+            const [buyIn, setBuyIn] = useState('');
+            const [rebuyCost, setRebuyCost] = useState('');
+
+            const handleCreate = (e) => {
+                e.preventDefault();
+                const newT = { id: Date.now().toString(), name: name || `Tournoi ${tournaments.length + 1}`, buyIn: Number(buyIn) || 0, rebuyCost: Number(rebuyCost) || 0, date: new Date().toLocaleDateString(), participants: [], eliminations: [], payouts: {} };
+                setTournaments([newT, ...tournaments]);
+                setView('list'); setName(''); setBuyIn(''); setRebuyCost('');
+            };
+
+            const handleEditSubmit = (e) => {
+                e.preventDefault();
+                setTournaments(tournaments.map(t => t.id === selectedTourney.id ? { ...t, name: name || t.name, buyIn: Number(buyIn) || 0, rebuyCost: Number(rebuyCost) || 0 } : t));
+                setView('list'); setName(''); setBuyIn(''); setRebuyCost('');
+            };
+
+            const handleDelete = (e, id) => { e.stopPropagation(); setTournaments(tournaments.filter(t => t.id !== id)); };
+
+            const openEdit = (e, t) => { e.stopPropagation(); setSelectedTourney(t); setName(t.name); setBuyIn(t.buyIn.toString()); setRebuyCost(t.rebuyCost.toString()); setView('edit'); };
+
+            const closeForm = () => { setView('list'); setName(''); setBuyIn(''); setRebuyCost(''); };
+
+            if (view === 'create' || view === 'edit') {
+                const isEdit = view === 'edit';
+                return (
+                    <div className="p-4">
+                        <div className="flex items-center mb-6">
+                            <button onClick={closeForm} className="mr-3 text-gray-400 hover:text-white drop-shadow-md"><Icon name="ChevronRight" className="rotate-180" size={24} /></button>
+                            <h2 className="text-2xl font-bold drop-shadow-md text-white">{isEdit ? 'Modifier' : 'Nouveau Tournoi'}</h2>
+                        </div>
+                        <form onSubmit={isEdit ? handleEditSubmit : handleCreate} className="space-y-5">
+                            <div><label className="block text-sm text-gray-300 font-medium mb-1">Nom</label><input type="text" value={name} onChange={e=>setName(e.target.value)} className="w-full bg-gray-800/60 backdrop-blur rounded-lg p-3 border border-gray-700 text-white focus:border-blue-500 focus:outline-none shadow-inner" placeholder="Ex: Main Event" /></div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div><label className="block text-sm text-gray-300 font-medium mb-1">Buy-in (€)</label><input type="number" value={buyIn} onChange={e=>setBuyIn(e.target.value)} className="w-full bg-gray-800/60 backdrop-blur rounded-lg p-3 border border-gray-700 text-white focus:border-blue-500 focus:outline-none shadow-inner" placeholder="0" /></div>
+                                <div><label className="block text-sm text-gray-300 font-medium mb-1">Recave (€)</label><input type="number" value={rebuyCost} onChange={e=>setRebuyCost(e.target.value)} className="w-full bg-gray-800/60 backdrop-blur rounded-lg p-3 border border-gray-700 text-white focus:border-blue-500 focus:outline-none shadow-inner" placeholder="0" /></div>
+                            </div>
+                            <button type="submit" className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl mt-6 shadow-[0_0_15px_rgba(59,130,246,0.4)] transition-colors">{isEdit ? 'Enregistrer' : 'Créer le Tournoi'}</button>
+                        </form>
+                    </div>
+                );
+            }
+
+            if (view === 'details' && selectedTourney) {
+                return <TournamentDetails tourney={selectedTourney} allPlayers={players} onUpdate={(u) => { setTournaments(tournaments.map(t => t.id === u.id ? u : t)); setSelectedTourney(u); }} onBack={() => setView('list')} />;
+            }
+
+            return (
+                <div className="p-4">
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-2xl font-bold drop-shadow-md text-white">Tournois</h2>
+                        <button onClick={() => { setView('create'); setName(''); setBuyIn(''); setRebuyCost(''); }} className="bg-blue-600 hover:bg-blue-500 p-2 rounded-lg text-white shadow-[0_0_10px_rgba(59,130,246,0.4)] transition-colors"><Icon name="Plus" size={20} /></button>
+                    </div>
+                    <div className="space-y-4">
+                        {tournaments.map(t => {
+                            const totalPrize = (t.participants.length * t.buyIn) + (t.participants.reduce((acc, p) => acc + p.rebuys, 0) * t.rebuyCost);
+                            return (
+                                <div key={t.id} onClick={() => { setSelectedTourney(t); setView('details'); }} className="bg-gray-800/40 backdrop-blur-md p-4 rounded-xl border border-gray-700/60 cursor-pointer relative shadow-lg hover:border-blue-500/50 transition-colors group">
+                                    <div className="flex justify-between items-start mb-3 pr-20"><h3 className="font-bold text-lg text-white group-hover:text-blue-400 transition-colors">{t.name}</h3><span className="text-xs font-medium text-gray-400 bg-gray-900/50 px-2 py-1 rounded-full">{t.date}</span></div>
+                                    <div className="flex justify-between text-sm text-gray-300 font-medium"><span><Icon name="Users" size={14} className="inline mr-1 opacity-70"/> {t.participants.length} Joueurs</span><span className="text-green-400">Prize: {totalPrize}€</span></div>
+                                    <div className="absolute top-3 right-3 flex space-x-2">
+                                        <button onClick={(e) => openEdit(e, t)} className="p-2 bg-gray-700/60 rounded-lg text-gray-300 hover:bg-gray-600 hover:text-white transition-colors"><Icon name="Edit2" size={16} /></button>
+                                        <button onClick={(e) => handleDelete(e, t.id)} className="p-2 bg-red-900/40 rounded-lg text-red-400 hover:bg-red-600 hover:text-white transition-colors"><Icon name="Trash2" size={16} /></button>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                        {tournaments.length === 0 && <div className="text-center text-gray-400 mt-10">Aucun tournoi enregistré.</div>}
+                    </div>
+                </div>
+            );
+        }
+
+        function TournamentDetails({ tourney, allPlayers, onUpdate, onBack }) {
+            const [killerId, setKillerId] = useState('');
+            const [victimId, setVictimId] = useState('');
+
+            const updatePayout = (rank, amount) => onUpdate({ ...tourney, payouts: { ...(tourney.payouts || {}), [rank]: Number(amount) } });
+            
+            const togglePlayer = (playerId) => {
+                const exists = tourney.participants.find(p => p.playerId === playerId);
+                const newParticipants = exists ? tourney.participants.filter(p => p.playerId !== playerId) : [...tourney.participants, { playerId, rebuys: 0 }];
+                onUpdate({ ...tourney, participants: newParticipants });
+            };
+
+            const addRebuy = (playerId) => onUpdate({ ...tourney, participants: tourney.participants.map(p => p.playerId === playerId ? { ...p, rebuys: p.rebuys + 1 } : p) });
+
+            const recordElimination = () => {
+                if (killerId && victimId && killerId !== victimId) {
+                    onUpdate({ ...tourney, eliminations: [...tourney.eliminations, { killerId, victimId, time: new Date().toLocaleTimeString() }] });
+                    setKillerId(''); setVictimId('');
+                }
+            };
+
+            const totalPrizePool = (tourney.participants.length * tourney.buyIn) + (tourney.participants.reduce((acc, p) => acc + p.rebuys, 0) * tourney.rebuyCost);
+            const totalParticipants = tourney.participants.length;
+
+            const activePlayers = tourney.participants.map(p => {
+                const pd = allPlayers.find(ap => ap.id === p.playerId);
+                const deaths = tourney.eliminations.filter(e => e.victimId === p.playerId).length;
+                const kills = tourney.eliminations.filter(e => e.killerId === p.playerId).length;
+                return { ...p, name: pd ? pd.name : 'Inconnu', deaths, kills };
+            });
+
+            const playersInGame = activePlayers.filter(p => p.rebuys >= p.deaths);
+            const playersOut = activePlayers.filter(p => p.deaths > p.rebuys).sort((a, b) => {
+                const getDeathIdx = (id) => { for (let i = tourney.eliminations.length - 1; i >= 0; i--) { if (tourney.eliminations[i].victimId === id) return i; } return -1; };
+                return getDeathIdx(b.playerId) - getDeathIdx(a.playerId);
+            });
+
+            return (
+                <div className="p-4 flex flex-col h-full overflow-y-auto">
+                    <div className="flex items-center mb-5">
+                        <button onClick={onBack} className="mr-3 text-gray-300 bg-gray-800/60 backdrop-blur p-2 rounded-full border border-gray-700/50 hover:bg-gray-700/60 transition-colors"><Icon name="ChevronRight" className="rotate-180" size={20}/></button>
+                        <div>
+                            <h2 className="text-xl font-bold drop-shadow-md text-white">{tourney.name}</h2>
+                            <p className="text-xs text-green-400 font-bold drop-shadow-sm">Prize Pool: {totalPrizePool}€ (BuyIn: {tourney.buyIn}€)</p>
                         </div>
                     </div>
-                `;
-            });
 
-            tRes.results.forEach(res => {
-                let isFirst = res.rank === 1;
-                let playerObj = tData.players.find(p => p.name === res.name);
-                
-                let gainText = res.gain > 0 ? Math.round(res.gain) + ' €' : '-';
-                if (res.isManual) {
-                    gainText = '<span style="color:var(--accent-gold);">' + res.gain + ' €</span>';
-                }
+                    <div className="mb-6">
+                        <h3 className="font-semibold text-gray-300 mb-2 uppercase text-xs tracking-wider">Participants</h3>
+                        <div className="bg-gray-800/40 backdrop-blur-md rounded-xl p-3 max-h-48 overflow-y-auto border border-gray-700/50 shadow-inner">
+                            {allPlayers.map(p => {
+                                const isParticipating = tourney.participants.find(tp => tp.playerId === p.id);
+                                return (
+                                    <div key={p.id} className="flex items-center justify-between mb-2 p-1">
+                                        <label className="flex items-center space-x-3 cursor-pointer"><input type="checkbox" checked={!!isParticipating} onChange={() => togglePlayer(p.id)} className="w-5 h-5 accent-blue-600 rounded" /><span className={isParticipating ? 'text-white font-medium' : 'text-gray-400'}>{p.name}</span></label>
+                                        {isParticipating && tourney.rebuyCost > 0 && <div className="flex items-center space-x-2"><span className="text-xs font-medium text-blue-300 bg-blue-900/30 px-2 py-1 rounded-md">{isParticipating.rebuys} recaves</span><button onClick={() => addRebuy(p.id)} className="bg-gray-700/80 text-xs px-2 py-1 rounded hover:bg-gray-600 transition-colors text-white font-bold">+1</button></div>}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
 
-                leaderboard.innerHTML += `
-                    <tr>
-                        <td class="${isFirst ? 'gold' : ''}">${res.rank}</td>
-                        <td class="${isFirst ? 'gold' : ''}">
-                            ${res.name} 
-                            ${playerObj.active ? '' : `<button class="btn-small" style="padding:2px 5px; font-size:10px; margin-left:5px;" onclick="reactivatePlayer(${playerObj.id})">↩️</button>`}
-                        </td>
-                        <td>${res.points}</td>
-                        <td style="color: ${res.gain > 0 ? 'var(--accent-green)' : 'var(--text-muted)'}; display:flex; justify-content:center; align-items:center; gap:5px;">
-                            ${gainText}
-                            <button class="btn-small" style="background:#444; padding:2px 5px; font-size:10px;" onclick="openPrizeModal(${playerObj.id}, '${res.name}', ${res.isManual ? res.gain : Math.round(res.gain)})">✏️</button>
-                        </td>
-                    </tr>
-                `;
-            });
+                    <div className="mb-6 bg-gray-900/50 backdrop-blur-md p-4 rounded-xl border border-blue-900/50 shadow-lg relative overflow-hidden">
+                        <div className="absolute top-0 right-0 p-4 opacity-5 text-blue-500"><Icon name="Swords" size={60} /></div>
+                        <h3 className="font-bold text-blue-400 mb-3 drop-shadow-sm relative z-10">Enregistrer une élimination</h3>
+                        <div className="space-y-3 relative z-10">
+                            <select value={killerId} onChange={e=>setKillerId(e.target.value)} className="w-full bg-gray-800/80 border border-gray-700 rounded-lg p-2.5 text-white focus:border-blue-500 focus:outline-none shadow-inner">
+                                <option value="">Le tueur (Bounty) ...</option>
+                                {playersInGame.map(p => <option key={p.playerId} value={p.playerId}>{p.name}</option>)}
+                            </select>
+                            <select value={victimId} onChange={e=>setVictimId(e.target.value)} className="w-full bg-gray-800/80 border border-gray-700 rounded-lg p-2.5 text-white focus:border-blue-500 focus:outline-none shadow-inner">
+                                <option value="">La victime ...</option>
+                                {playersInGame.map(p => <option key={p.playerId} value={p.playerId}>{p.name}</option>)}
+                            </select>
+                            <button onClick={recordElimination} disabled={!killerId || !victimId || killerId === victimId} className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold py-3 rounded-lg shadow-[0_0_15px_rgba(59,130,246,0.3)] transition-colors mt-2">Valider</button>
+                        </div>
+                    </div>
 
-            updateGlobalLeaderboard();
+                    <div className="mb-6">
+                        <h3 className="font-semibold text-gray-300 mb-2 uppercase text-xs tracking-wider">Historique</h3>
+                        <div className="space-y-2">
+                            {tourney.eliminations.map((el, idx) => (
+                                <div key={idx} className="bg-gray-800/40 backdrop-blur-sm p-3 rounded-lg text-sm flex justify-between items-center border-l-2 border-blue-500 shadow-sm">
+                                    <span><span className="text-blue-400 font-bold">{allPlayers.find(p => p.id === el.killerId)?.name}</span> <span className="mx-2 text-gray-500 text-xs">⚔️</span> <span className="line-through text-gray-400">{allPlayers.find(p => p.id === el.victimId)?.name}</span></span>
+                                    <span className="text-xs text-gray-500 font-mono">{el.time}</span>
+                                </div>
+                            ))}
+                            {tourney.eliminations.length === 0 && <div className="text-xs text-gray-500 italic">Aucune élimination.</div>}
+                        </div>
+                    </div>
+
+                    <div className="mb-6">
+                        <h3 className="font-semibold text-green-400 mb-2 uppercase text-xs flex items-center tracking-wider"><Icon name="DollarSign" size={14} className="mr-1"/> Répartition des Gains</h3>
+                        <div className="bg-gray-800/40 backdrop-blur-md rounded-xl p-3 border border-gray-700/50 space-y-2 shadow-inner">
+                            {Array.from({ length: Math.min(10, Math.max(1, totalParticipants)) }).map((_, i) => (
+                                <div key={i+1} className="flex items-center justify-between"><span className="text-sm text-gray-300 font-medium">Position {i+1}</span><input type="number" value={(tourney.payouts && tourney.payouts[i+1]) || ''} onChange={(e) => updatePayout(i+1, e.target.value)} placeholder="0" className="bg-gray-900/80 border border-gray-600 rounded-lg p-1.5 w-24 text-right text-white focus:border-blue-500 focus:outline-none" /></div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="pb-4">
+                        <h3 className="font-semibold text-gray-300 mb-2 uppercase text-xs flex items-center tracking-wider"><Icon name="Trophy" size={14} className="mr-2 text-yellow-500 drop-shadow-md" /> Classement en direct</h3>
+                        <div className="bg-gray-800/40 backdrop-blur-md rounded-xl border border-gray-700/50 shadow-lg overflow-hidden">
+                            {playersInGame.map(p => {
+                                const rank = Math.max(1, playersInGame.length);
+                                const prize = (tourney.payouts && tourney.payouts[rank]) || 0;
+                                const pts = calcPoints(rank, totalParticipants, tourney.buyIn, prize, p.kills, p.rebuys);
+                                const net = prize - (tourney.buyIn + p.rebuys * tourney.rebuyCost);
+                                return (
+                                    <div key={`in-${p.playerId}`} className="flex justify-between items-center p-3 border-b border-gray-700/50 bg-gray-800/60">
+                                        <div>
+                                            <div className="flex items-center"><span className="text-yellow-500 font-bold mr-3 w-4 text-center">{rank}</span><span className="font-bold text-white">{p.name}</span></div>
+                                            <div className="text-[10px] text-green-400 mt-1 bg-green-900/30 px-2 py-0.5 rounded-full inline-block font-medium">En lice {p.kills > 0 && <span className="ml-1 text-blue-300">| ⚔️ {p.kills}</span>}</div>
+                                        </div>
+                                        <div className="text-right flex flex-col items-end">
+                                            <span className="text-emerald-400 font-black text-sm">{pts.toFixed(1)} pts</span>
+                                            {prize > 0 && <span className="text-[10px] text-green-300 mt-0.5">Prix: {prize}€</span>}
+                                            <div className={`text-[10px] font-bold mt-0.5 ${net >= 0 ? 'text-green-500' : 'text-red-400'}`}>Net: {net > 0 ? '+' : ''}{net}€</div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                            {playersOut.map((p, idx) => {
+                                const rank = playersInGame.length + idx + 1;
+                                const prize = (tourney.payouts && tourney.payouts[rank]) || 0;
+                                const pts = calcPoints(rank, totalParticipants, tourney.buyIn, prize, p.kills, p.rebuys);
+                                const net = prize - (tourney.buyIn + p.rebuys * tourney.rebuyCost);
+                                return (
+                                    <div key={`out-${p.playerId}`} className="flex justify-between items-center p-3 border-b border-gray-700/50 bg-gray-900/50 opacity-70">
+                                        <div>
+                                            <div className="flex items-center"><span className="text-gray-500 font-bold mr-3 w-4 text-center">{rank}</span><span className="line-through text-gray-400">{p.name}</span></div>
+                                            <div className="text-[10px] text-red-400 mt-1 bg-red-900/20 px-2 py-0.5 rounded-full inline-block font-medium">Éliminé {p.kills > 0 && <span className="ml-1 text-blue-300">| ⚔️ {p.kills}</span>}</div>
+                                        </div>
+                                        <div className="text-right flex flex-col items-end">
+                                            <span className="text-gray-400 font-bold text-sm">{pts.toFixed(1)} pts</span>
+                                            {prize > 0 && <span className="text-[10px] text-green-300 mt-0.5">Prix: {prize}€</span>}
+                                            <div className={`text-[10px] font-bold mt-0.5 ${net >= 0 ? 'text-green-500' : 'text-red-400'}`}>Net: {net > 0 ? '+' : ''}{net}€</div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                            {tourney.participants.length === 0 && <div className="p-4 text-center text-xs text-gray-500">Ajoutez des participants pour voir le classement.</div>}
+                        </div>
+                    </div>
+                </div>
+            );
         }
 
-        // --- CUMUL GÉNÉRAL ---
-        function updateGlobalLeaderboard() {
-            let globalStats = {};
-            
-            for(let id in tournaments) {
-                let tourney = tournaments[id];
-                if(tourney.players.length === 0) continue;
-                
-                let tRes = getTournamentResults(tourney);
-                
-                tRes.results.forEach(res => {
-                    if(!globalStats[res.name]) {
-                        globalStats[res.name] = { points: 0, gain: 0, tournoisJoues: 0, rebuys: 0 };
-                    }
-                    globalStats[res.name].points += res.points;
-                    globalStats[res.name].gain += res.gain;
-                    globalStats[res.name].tournoisJoues += 1;
-                    globalStats[res.name].rebuys += res.rebuys;
+        function RankingView({ tournaments, players }) {
+            const stats = useMemo(() => {
+                const pStats = {};
+                players.forEach(p => pStats[p.id] = { name: p.name, points: 0, netProfit: 0, kills: 0, totalSpent: 0 });
+
+                tournaments.forEach(t => {
+                    const totalP = t.participants.length;
+                    if (totalP === 0) return;
+
+                    const active = t.participants.map(p => ({
+                        ...p, deaths: t.eliminations.filter(e => e.victimId === p.playerId).length,
+                        kills: t.eliminations.filter(e => e.killerId === p.playerId).length
+                    }));
+
+                    const inGame = active.filter(p => p.rebuys >= p.deaths);
+                    const out = active.filter(p => p.deaths > p.rebuys).sort((a, b) => {
+                        const getDIdx = (id) => { for (let i = t.eliminations.length - 1; i >= 0; i--) if (t.eliminations[i].victimId === id) return i; return -1; };
+                        return getDIdx(b.playerId) - getDIdx(a.playerId);
+                    });
+
+                    const process = (p, rank) => {
+                        if (!pStats[p.playerId]) return;
+                        const spent = t.buyIn + (p.rebuys * t.rebuyCost);
+                        const prize = (t.payouts && t.payouts[rank]) || 0;
+                        pStats[p.playerId].totalSpent += spent;
+                        pStats[p.playerId].netProfit += (prize - spent);
+                        pStats[p.playerId].points += calcPoints(rank, totalP, t.buyIn, prize, p.kills, p.rebuys);
+                        pStats[p.playerId].kills += p.kills;
+                    };
+
+                    inGame.forEach(p => process(p, Math.max(1, inGame.length)));
+                    out.forEach((p, idx) => process(p, inGame.length + idx + 1));
                 });
-            }
+                return Object.values(pStats).sort((a, b) => b.points - a.points);
+            }, [tournaments, players]);
 
-            let globalArray = Object.keys(globalStats).map(name => {
-                return { name: name, ...globalStats[name] };
-            });
-            globalArray.sort((a, b) => b.points - a.points);
-
-            const gLeaderboard = document.getElementById('globalLeaderboard');
-            gLeaderboard.innerHTML = '';
-            
-            if(globalArray.length === 0) {
-                gLeaderboard.innerHTML = '<tr><td colspan="5" style="color:#777;">Aucune donnée</td></tr>';
-                return;
-            }
-
-            globalArray.forEach((p, index) => {
-                let badge = index === 0 ? '🥇 ' : index === 1 ? '🥈 ' : index === 2 ? '🥉 ' : '';
-                let color = index === 0 ? 'var(--accent-gold)' : 'white';
-                gLeaderboard.innerHTML += `
-                    <tr style="color:${color}; font-weight:${index===0?'bold':'normal'};">
-                        <td>${badge}${p.name}</td>
-                        <td>${p.tournoisJoues}</td>
-                        <td style="color:var(--accent-orange)">${p.rebuys}</td>
-                        <td>${p.points}</td>
-                        <td style="color:var(--accent-green)">${Math.round(p.gain)} €</td>
-                    </tr>
-                `;
-            });
+            return (
+                <div className="p-4 h-full">
+                    <div className="flex items-center justify-center space-x-3 mb-8 mt-4">
+                        <Icon name="Medal" size={32} className="text-yellow-500 drop-shadow-[0_0_10px_rgba(234,179,8,0.7)]" />
+                        <h2 className="text-2xl font-black uppercase tracking-widest text-center text-white drop-shadow-lg">Leaderboard</h2>
+                        <Icon name="Medal" size={32} className="text-yellow-500 drop-shadow-[0_0_10px_rgba(234,179,8,0.7)]" />
+                    </div>
+                    <div className="space-y-4">
+                        {stats.map((s, index) => (
+                            <div key={s.name} className="bg-gray-800/60 backdrop-blur-md rounded-2xl p-4 flex items-center border border-gray-700/50 shadow-lg relative overflow-hidden">
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-lg mr-4 shadow-md z-10 ${index === 0 ? 'bg-yellow-500 text-black shadow-[0_0_20px_rgba(234,179,8,0.8)] border border-yellow-300' : index === 1 ? 'bg-gray-300 text-black shadow-[0_0_15px_rgba(209,213,219,0.6)] border border-gray-100' : index === 2 ? 'bg-amber-700 text-white shadow-[0_0_15px_rgba(180,83,9,0.6)] border border-amber-600' : 'bg-gray-700/80 text-gray-400 border border-gray-600'}`}>
+                                    {index + 1}
+                                </div>
+                                <div className="flex-1 z-10">
+                                    <h3 className="font-bold text-lg text-white">{s.name}</h3>
+                                    <div className="flex space-x-3 text-[11px] mt-1.5 font-medium">
+                                        <span className="text-blue-400 bg-blue-900/30 px-2 py-0.5 rounded">⚔️ {s.kills} Kills</span>
+                                        <span className="text-gray-400 bg-gray-900/50 px-2 py-0.5 rounded">💸 Inv: {s.totalSpent}€</span>
+                                    </div>
+                                    <div className={`text-xs font-bold mt-1.5 inline-block ${s.netProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                        {s.netProfit > 0 ? '🏆 ' : ''}Net: {s.netProfit > 0 ? '+' : ''}{s.netProfit}€
+                                    </div>
+                                </div>
+                                <div className="text-right z-10">
+                                    <div className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-br from-green-400 to-emerald-300 drop-shadow-md">
+                                        {s.points.toFixed(1)} <span className="text-xs text-emerald-500">pts</span>
+                                    </div>
+                                </div>
+                                
+                                {index === 0 && <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-yellow-500/20 to-transparent z-0"></div>}
+                            </div>
+                        ))}
+                        {stats.length === 0 && <div className="text-center text-gray-400 mt-10">Jouez des tournois pour voir le classement global.</div>}
+                    </div>
+                </div>
+            );
         }
 
-        window.onload = init;
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
     </script>
 </body>
 </html>
