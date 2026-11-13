@@ -116,18 +116,45 @@
             const [activeTab, setActiveTab] = useState('timer');
             const [isFlashing, setIsFlashing] = useState(false);
 
-            const [players, setPlayers] = useState([
-                { id: '1', name: 'Alice' },
-                { id: '2', name: 'Bob' },
-                { id: '3', name: 'Charlie' }
-            ]);
+            // Chargement des joueurs depuis la mémoire
+            const [players, setPlayers] = useState(() => {
+                const saved = localStorage.getItem('poker_players');
+                return saved ? JSON.parse(saved) : [
+                    { id: '1', name: 'Alice' },
+                    { id: '2', name: 'Bob' },
+                    { id: '3', name: 'Charlie' }
+                ];
+            });
 
-            const [tournaments, setTournaments] = useState([]);
-            const [blinds, setBlinds] = useState(DEFAULT_BLINDS);
+            // Chargement des tournois depuis la mémoire
+            const [tournaments, setTournaments] = useState(() => {
+                const saved = localStorage.getItem('poker_tournaments');
+                return saved ? JSON.parse(saved) : [];
+            });
 
-            const [currentLevelIdx, setCurrentLevelIdx] = useState(0);
-            const [timeLeft, setTimeLeft] = useState(DEFAULT_BLINDS[0].duration * 60);
+            // Chargement de la structure des blinds depuis la mémoire
+            const [blinds, setBlinds] = useState(() => {
+                const saved = localStorage.getItem('poker_blinds');
+                return saved ? JSON.parse(saved) : DEFAULT_BLINDS;
+            });
+
+            // Chargement de l'état du minuteur
+            const [currentLevelIdx, setCurrentLevelIdx] = useState(() => {
+                const saved = localStorage.getItem('poker_level');
+                return saved ? JSON.parse(saved) : 0;
+            });
+            const [timeLeft, setTimeLeft] = useState(() => {
+                const saved = localStorage.getItem('poker_time');
+                return saved ? JSON.parse(saved) : DEFAULT_BLINDS[0].duration * 60;
+            });
             const [isRunning, setIsRunning] = useState(false);
+
+            // Sauvegarde automatique à chaque modification
+            useEffect(() => localStorage.setItem('poker_players', JSON.stringify(players)), [players]);
+            useEffect(() => localStorage.setItem('poker_tournaments', JSON.stringify(tournaments)), [tournaments]);
+            useEffect(() => localStorage.setItem('poker_blinds', JSON.stringify(blinds)), [blinds]);
+            useEffect(() => localStorage.setItem('poker_level', JSON.stringify(currentLevelIdx)), [currentLevelIdx]);
+            useEffect(() => localStorage.setItem('poker_time', JSON.stringify(timeLeft)), [timeLeft]);
 
             useEffect(() => {
                 let interval = null;
