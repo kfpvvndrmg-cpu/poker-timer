@@ -25,7 +25,6 @@
     <style>
         body { 
             background-color: #0f172a; 
-            /* Image de fond attachée au body */
             background-image: url('aa1f583f57996f4e339f6f1ce4e91710.jpg');
             background-size: cover;
             background-position: center;
@@ -36,7 +35,6 @@
             padding: 0;
         }
         .pb-safe { padding-bottom: env(safe-area-inset-bottom, 20px); }
-        /* Masquer la barre de défilement tout en gardant le scroll */
         ::-webkit-scrollbar { width: 0px; background: transparent; }
     </style>
 </head>
@@ -69,7 +67,7 @@
             return <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className} dangerouslySetInnerHTML={{__html: icons[name]}} />;
         };
 
-        // --- UTILITAIRES & AUDIO ---
+        // --- AUDIO ---
         const playBeep = () => {
             try {
                 const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -112,49 +110,108 @@
             return rankTerm + buyInTerm + prizeTerm + combatTerm;
         };
 
-        function App() {
+        // --- HOOK CLOUD STORAGE (Firebase) ---
+        function useCloudData() {
+            const [loading, setLoading] = useState(true);
+            const [data, setData] = useState(null);
+
+            useEffect(() => {
+                const initCloud = async () => {
+                    try {
+                        const appId = typeof __app_id !== 'undefined' ? __app_id : 'poker-app-default';
+                        const configStr = typeof __firebase_config !== 'undefined' ? __firebase_config : null;
+                        const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+                        if (!configStr) {
+                            console.warn("Mode local : Aucune configuration Cloud détectée.");
+                            const localData = localStorage.getItem('poker_data');
+                            if (localData) {
+                                setData(JSON.parse(localData));
+                            } else {
+                                setData({});
+                            }
+                            setLoading(false);
+                            return;
+                        }
+
+                        const config = JSON.parse(configStr);
+
+                        const { initializeApp } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js');
+                        const { getAuth, signInWithCustomToken, signInAnonymously } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js');
+                        const { getFirestore, doc, getDoc, setDoc } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js');
+
+                        const app = initializeApp(config);
+                        const auth = getAuth(app);
+                        const db = getFirestore(app);
+
+                        if (token) await signInWithCustomToken(auth, token);
+                        else await signInAnonymously(auth);
+
+                        const user = auth.currentUser;
+                        if (!user) throw new Error("Erreur d'authentification");
+
+                        window.pokerDb = db;
+                        window.pokerUser = user;
+                        window.pokerAppId = appId;
+                        window.pokerSetDoc = setDoc;
+                        window.pokerDoc = doc;
+
+                        const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'poker_data', 'main');
+                        const snap = await getDoc(docRef);
+                        
+                        if (snap.exists()) setData(snap.data());
+                        else setData({});
+                        
+                        setLoading(false);
+                    } catch (e) {
+                        console.error("Erreur d'initialisation Cloud :", e);
+                        setLoading(false);
+                        setData({});
+                    }
+                };
+                initCloud();
+            }, []);
+
+            const saveData = async (payload) => {
+                if (window.pokerDb && window.pokerUser) {
+                    try {
+                        const docRef = window.pokerDoc(window.pokerDb, 'artifacts', window.pokerAppId, 'users', window.pokerUser.uid, 'poker_data', 'main');
+                        await window.pokerSetDoc(docRef, payload, { merge: true });
+                    } catch (e) {
+                        console.error("Erreur de sauvegarde :", e);
+                    }
+                } else {
+                    // Fallback vers le stockage local de l'iPhone (GitHub Pages)
+                    localStorage.setItem('poker_data', JSON.stringify(payload));
+                }
+            };
+
+            return { loading, data, saveData };
+        }
+
+        // --- APPLICATION PRINCIPALE ---
+        function MainApp({ initialData, saveData }) {
             const [activeTab, setActiveTab] = useState('timer');
             const [isFlashing, setIsFlashing] = useState(false);
 
-            // Chargement des joueurs depuis la mémoire
-            const [players, setPlayers] = useState(() => {
-                const saved = localStorage.getItem('poker_players');
-                return saved ? JSON.parse(saved) : [
-                    { id: '1', name: 'Alice' },
-                    { id: '2', name: 'Bob' },
-                    { id: '3', name: 'Charlie' }
-                ];
-            });
-
-            // Chargement des tournois depuis la mémoire
-            const [tournaments, setTournaments] = useState(() => {
-                const saved = localStorage.getItem('poker_tournaments');
-                return saved ? JSON.parse(saved) : [];
-            });
-
-            // Chargement de la structure des blinds depuis la mémoire
-            const [blinds, setBlinds] = useState(() => {
-                const saved = localStorage.getItem('poker_blinds');
-                return saved ? JSON.parse(saved) : DEFAULT_BLINDS;
-            });
-
-            // Chargement de l'état du minuteur
-            const [currentLevelIdx, setCurrentLevelIdx] = useState(() => {
-                const saved = localStorage.getItem('poker_level');
-                return saved ? JSON.parse(saved) : 0;
-            });
-            const [timeLeft, setTimeLeft] = useState(() => {
-                const saved = localStorage.getItem('poker_time');
-                return saved ? JSON.parse(saved) : DEFAULT_BLINDS[0].duration * 60;
-            });
+            const [players, setPlayers] = useState(initialData?.players || [
+                { id: '1', name: 'Alice' },
+                { id: '2', name: 'Bob' },
+                { id: '3', name: 'Charlie' }
+            ]);
+            const [tournaments, setTournaments] = useState(initialData?.tournaments || []);
+            const [blinds, setBlinds] = useState(initialData?.blinds || DEFAULT_BLINDS);
+            const [currentLevelIdx, setCurrentLevelIdx] = useState(initialData?.currentLevelIdx || 0);
+            const [timeLeft, setTimeLeft] = useState(initialData?.timeLeft !== undefined ? initialData.timeLeft : DEFAULT_BLINDS[0].duration * 60);
             const [isRunning, setIsRunning] = useState(false);
 
-            // Sauvegarde automatique à chaque modification
-            useEffect(() => localStorage.setItem('poker_players', JSON.stringify(players)), [players]);
-            useEffect(() => localStorage.setItem('poker_tournaments', JSON.stringify(tournaments)), [tournaments]);
-            useEffect(() => localStorage.setItem('poker_blinds', JSON.stringify(blinds)), [blinds]);
-            useEffect(() => localStorage.setItem('poker_level', JSON.stringify(currentLevelIdx)), [currentLevelIdx]);
-            useEffect(() => localStorage.setItem('poker_time', JSON.stringify(timeLeft)), [timeLeft]);
+            // Sauvegarde Cloud avec debounce (toutes les 2 secondes max)
+            useEffect(() => {
+                const timeoutId = setTimeout(() => {
+                    saveData({ players, tournaments, blinds, currentLevelIdx, timeLeft });
+                }, 2000);
+                return () => clearTimeout(timeoutId);
+            }, [players, tournaments, blinds, currentLevelIdx, timeLeft]);
 
             useEffect(() => {
                 let interval = null;
@@ -216,7 +273,6 @@
 
             return (
                 <div className={`min-h-screen text-gray-100 font-sans transition-colors duration-300 ${isFlashing ? 'bg-blue-900/60' : 'bg-transparent'}`}>
-                    {/* Conteneur avec un flou très léger (sm) et fond presque transparent (black/10) */}
                     <div className="max-w-md mx-auto bg-black/10 min-h-screen shadow-2xl overflow-hidden flex flex-col relative pb-16 backdrop-blur-sm border-x border-white/10">
                         <header className="bg-black/40 backdrop-blur-md p-4 shadow-md flex items-center justify-between z-10 border-b border-white/10">
                             <div className="flex items-center space-x-3">
@@ -250,6 +306,22 @@
                     </div>
                 </div>
             );
+        }
+
+        // --- LOADER ---
+        function App() {
+            const { loading, data, saveData } = useCloudData();
+            
+            if (loading) {
+                return (
+                    <div className="min-h-screen flex flex-col items-center justify-center bg-black/50 backdrop-blur-md">
+                        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                        <p className="text-blue-300 mt-4 font-bold tracking-widest uppercase">Connexion au Cloud...</p>
+                    </div>
+                );
+            }
+
+            return <MainApp initialData={data} saveData={saveData} />;
         }
 
         function NavItem({ icon, label, isActive, onClick }) {
@@ -357,8 +429,14 @@
 
         function PlayersView({ players, setPlayers }) {
             const [newPlayer, setNewPlayer] = useState('');
+            // Etats pour l'édition
             const [editingId, setEditingId] = useState(null);
             const [editName, setEditName] = useState('');
+            
+            // Etats pour l'export/import de sauvegarde
+            const [exportMsg, setExportMsg] = useState('');
+            const [showImport, setShowImport] = useState(false);
+            const [importCode, setImportCode] = useState('');
 
             const handleAdd = (e) => {
                 e.preventDefault();
@@ -372,15 +450,50 @@
                 setPlayers(players.filter(p => p.id !== id));
             };
 
+            // Démarrer l'édition
             const startEdit = (player) => {
                 setEditingId(player.id);
                 setEditName(player.name);
             };
 
+            // Sauvegarder l'édition
             const saveEdit = (id) => {
                 if (editName.trim()) {
                     setPlayers(players.map(p => p.id === id ? { ...p, name: editName.trim() } : p));
                     setEditingId(null);
+                }
+            };
+
+            const handleExport = () => {
+                const data = localStorage.getItem('poker_data');
+                if (data) {
+                    const textArea = document.createElement("textarea");
+                    textArea.value = data;
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    try {
+                        document.execCommand('copy');
+                        setExportMsg('Données copiées ! Collez-les dans vos Notes.');
+                    } catch (err) {
+                        setExportMsg('Erreur lors de la copie.');
+                    }
+                    document.body.removeChild(textArea);
+                    setTimeout(() => setExportMsg(''), 4000);
+                } else {
+                    setExportMsg('Aucune donnée à exporter.');
+                    setTimeout(() => setExportMsg(''), 3000);
+                }
+            };
+
+            const handleImport = () => {
+                if (!importCode) return;
+                try {
+                    JSON.parse(importCode); // Vérifie si le code est valide
+                    localStorage.setItem('poker_data', importCode);
+                    window.location.reload(); // Recharge pour appliquer
+                } catch (e) {
+                    setExportMsg('Code de sauvegarde invalide.');
+                    setTimeout(() => setExportMsg(''), 3000);
                 }
             };
 
@@ -406,6 +519,7 @@
                                             <div className="w-10 h-10 bg-blue-900/60 border border-blue-500/40 rounded-full flex items-center justify-center font-bold text-blue-300 shadow-inner">{player.name.substring(0, 2).toUpperCase()}</div>
                                             <span className="font-semibold text-lg text-white">{player.name}</span>
                                         </div>
+                                        {/* Boutons d'action : Crayon et Poubelle */}
                                         <div className="flex space-x-2">
                                             <button onClick={() => startEdit(player)} className="text-blue-400/90 hover:text-blue-400 p-2 bg-blue-900/30 rounded-full transition-colors border border-blue-500/20"><Icon name="Edit2" size={20} /></button>
                                             <button onClick={() => handleRemove(player.id)} className="text-red-400/90 hover:text-red-400 p-2 bg-red-900/30 rounded-full transition-colors border border-red-500/20"><Icon name="Trash2" size={20} /></button>
@@ -414,6 +528,38 @@
                                 )}
                             </div>
                         ))}
+                    </div>
+
+                    {/* ZONE DE SAUVEGARDE (EXPORT/IMPORT) */}
+                    <div className="mt-4 pt-4 border-t border-white/10 flex-shrink-0">
+                        <h3 className="text-sm font-bold text-gray-400 mb-3 uppercase tracking-wider">Sauvegarde Manuelle</h3>
+                        
+                        {showImport ? (
+                            <div className="space-y-2">
+                                <textarea 
+                                    value={importCode} 
+                                    onChange={(e) => setImportCode(e.target.value)}
+                                    placeholder="Collez le code depuis vos notes ici..."
+                                    className="w-full h-24 bg-black/50 border border-white/10 rounded-lg p-2 text-white text-xs font-mono focus:border-blue-500 focus:outline-none"
+                                />
+                                <div className="flex space-x-2">
+                                    <button onClick={handleImport} className="flex-1 bg-green-600/90 text-white py-2 rounded-lg font-bold text-sm">Restaurer</button>
+                                    <button onClick={() => {setShowImport(false); setImportCode('');}} className="flex-1 bg-gray-700/50 text-white py-2 rounded-lg font-bold text-sm border border-gray-600">Annuler</button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="flex space-x-2">
+                                <button onClick={handleExport} className="flex-1 bg-blue-900/50 border border-blue-500/30 text-blue-300 py-3 rounded-lg text-sm font-bold hover:bg-blue-800/50 transition-colors shadow-sm">
+                                    Copier mes données
+                                </button>
+                                <button onClick={() => setShowImport(true)} className="flex-1 bg-black/40 border border-white/10 text-gray-300 py-3 rounded-lg text-sm font-bold hover:bg-black/60 transition-colors">
+                                    Restaurer
+                                </button>
+                            </div>
+                        )}
+                        
+                        {exportMsg && <div className="mt-3 text-center text-sm font-bold text-green-400 bg-green-900/30 p-2 rounded-lg border border-green-500/20">{exportMsg}</div>}
+                        <p className="text-[10px] text-gray-500 mt-3 text-center leading-tight">Si vous prévoyez de vider le cache Safari, copiez vos données et collez-les dans l'application "Notes" pour ne pas les perdre.</p>
                     </div>
                 </div>
             );
